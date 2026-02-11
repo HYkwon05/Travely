@@ -1,0 +1,7 @@
+{
+  "name": "TravelLog italy",
+  "description": "A Notion-style travel planner with offline support and budget tracking.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
