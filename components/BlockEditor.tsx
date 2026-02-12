@@ -357,7 +357,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
                                        >
                                           <input
                                               type="time"
-                                              className="bg-transparent font-bold text-sm text-slate-600 text-center outline-none cursor-pointer w-[95px] group-hover:text-blue-600 transition-colors"
+                                              className="bg-transparent font-bold text-sm text-slate-600 text-center outline-none cursor-pointer w-[110px] group-hover:text-blue-600 transition-colors"
                                               value={block.meta?.time || ''}
                                               onChange={(e) => handleUpdateBlock(block.id, { meta: { ...block.meta, time: e.target.value } })}
                                           />
