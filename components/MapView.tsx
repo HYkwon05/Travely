@@ -44,6 +44,11 @@ const getCategoryStyle = (category: PlaceCategory) => {
                 bg: 'bg-[#0ea5e9]', // Sky 500
                 iconPath: 'M2 4v16 M2 8h18a2 2 0 0 1 2 2v10 M2 17h20 M6 8v9' // Bed
             };
+        case 'TRANSPORT':
+            return { 
+                bg: 'bg-[#64748b]', // Slate 500
+                iconPath: 'M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2 M15 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C14.7 10.6 12 10 12 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H4c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 1 12v4c0 .6.4 1 1 1h2 M7 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4z' // Bus/Car generic
+            };
         default:
             return { 
                 bg: 'bg-[#cbd5e1]', 
@@ -103,9 +108,9 @@ export const MapView: React.FC<MapViewProps> = ({ trip }) => {
             value={selectedDayId}
             onChange={(e) => setSelectedDayId(e.target.value)}
           >
-              <option value="ALL">All Days</option>
+              <option value="ALL">모든 일정</option>
               {trip.days.map((day, i) => (
-                  <option key={day.id} value={day.id}>Day {i + 1}</option>
+                  <option key={day.id} value={day.id}>{i + 1}일차</option>
               ))}
           </select>
       </div>
@@ -156,7 +161,7 @@ export const MapView: React.FC<MapViewProps> = ({ trip }) => {
                     `)}
                 >
                     <Popup>
-                        <div className="font-bold font-hand">Day {day.idx + 1}: {loc.name}</div>
+                        <div className="font-bold font-hand">{day.idx + 1}일차: {loc.name}</div>
                     </Popup>
                 </Marker>
             ))

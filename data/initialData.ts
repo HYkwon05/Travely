@@ -13,7 +13,8 @@ export const MOCK_SAVED_PLACES: SavedPlace[] = [
         lat: 41.9008, 
         lng: 12.4787,
         bookingStatus: 'NONE',
-        googleMapLink: 'https://goo.gl/maps/example1'
+        googleMapLink: 'https://goo.gl/maps/example1',
+        region: '로마'
     },
     { 
         id: 'p2', 
@@ -27,7 +28,8 @@ export const MOCK_SAVED_PLACES: SavedPlace[] = [
         lat: 41.9054, 
         lng: 12.4823,
         bookingStatus: 'BOOKED',
-        googleMapLink: 'https://goo.gl/maps/example2'
+        googleMapLink: 'https://goo.gl/maps/example2',
+        region: '로마'
     }
 ];
 

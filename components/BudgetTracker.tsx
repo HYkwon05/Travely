@@ -1,22 +1,36 @@
 import React, { useMemo, useState } from 'react';
 import { Trip, BlockType, ManualExpense, ExpenseCategory, Currency } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { Plus, X, Edit2, Check, Trash2 } from 'lucide-react';
+import { 
+  Plus, X, Edit2, Check, Trash2, TrendingUp, Wallet, 
+  Plane, BedDouble, Utensils, Bus, ShoppingBag, Camera, MoreHorizontal 
+} from 'lucide-react';
 
 interface BudgetTrackerProps {
   trip: Trip;
   onUpdateManualExpenses: (expenses: ManualExpense[]) => void;
   onUpdateBudget: (budget: number) => void;
+  onRemoveBlockExpense?: (id: string) => void;
 }
 
 const COLORS_BY_CATEGORY: Record<ExpenseCategory, string> = {
     'FLIGHT': '#3b82f6', // Blue 500
     'ACCOMMODATION': '#0ea5e9', // Sky 500
-    'FOOD': '#f59e0b', // Amber 500 (Contrast)
+    'FOOD': '#f59e0b', // Amber 500
     'TRANSPORT': '#1e293b', // Slate 800
     'SHOPPING': '#8b5cf6', // Violet 500
     'TOUR': '#14b8a6', // Teal 500
-    'OTHER': '#cbd5e1' // Slate 300
+    'OTHER': '#94a3b8' // Slate 400
+};
+
+const ICONS_BY_CATEGORY: Record<ExpenseCategory, React.ReactNode> = {
+    'FLIGHT': <Plane size={18} />,
+    'ACCOMMODATION': <BedDouble size={18} />,
+    'FOOD': <Utensils size={18} />,
+    'TRANSPORT': <Bus size={18} />,
+    'SHOPPING': <ShoppingBag size={18} />,
+    'TOUR': <Camera size={18} />,
+    'OTHER': <MoreHorizontal size={18} />
 };
 
 const RATES: Record<string, number> = {
@@ -26,7 +40,7 @@ const RATES: Record<string, number> = {
     'KRW': 1
 };
 
-export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManualExpenses, onUpdateBudget }) => {
+export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManualExpenses, onUpdateBudget, onRemoveBlockExpense }) => {
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(trip.budget ? trip.budget.toString() : '0');
   const [isAddingExpense, setIsAddingExpense] = useState(false);
@@ -50,7 +64,8 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
       // 2. Block Expenses
       (trip.days || []).forEach(day => {
           (day.blocks || []).forEach(block => {
-              if (block.type === BlockType.LOCATION && block.children) {
+              // Check Children (usually expenses are here)
+              if (block.children) {
                   block.children.forEach(child => {
                       if (child.type === BlockType.EXPENSE && child.meta?.amount) {
                           const currency = child.meta.currency || 'EUR';
@@ -59,7 +74,7 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
                           total += kwn;
                           all.push({
                               id: child.id,
-                              title: child.content || 'Misc',
+                              title: child.content || '기타 지출',
                               amount: child.meta.amount,
                               currency,
                               category,
@@ -71,6 +86,24 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
                       }
                   });
               }
+              // Check Top Level (less common but possible)
+              if (block.type === BlockType.EXPENSE && block.meta?.amount) {
+                  const currency = block.meta.currency || 'EUR';
+                  const category = block.meta.category || 'OTHER';
+                  const kwn = block.meta.amount * (RATES[currency] || 1);
+                  total += kwn;
+                  all.push({
+                      id: block.id,
+                      title: block.content || '기타 지출',
+                      amount: block.meta.amount,
+                      currency,
+                      category,
+                      isPaid: block.meta.isPaid,
+                      kwn,
+                      source: 'BLOCK'
+                  });
+                  catTotals[category] = (catTotals[category] || 0) + kwn;
+              }
           });
       });
 
@@ -79,7 +112,6 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
           value: catTotals[cat]
       }));
 
-      // Sort safely by creating a copy
       const sortedChartData = [...chartData].sort((a,b) => b.value - a.value);
 
       return { totalSpent: total, remaining: trip.budget - total, expensesByCategory: sortedChartData, allExpenses: all };
@@ -105,9 +137,20 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
       setNewExp({ currency: 'KRW', category: 'OTHER', isPaid: true, title: '', amount: 0 });
   };
 
-  const deleteManualExpense = (id: string) => {
-      if(confirm("Delete this expense?")) {
-        onUpdateManualExpenses(trip.manualExpenses.filter(e => e.id !== id));
+  const handleDelete = (id: string, source: string, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation(); 
+      
+      if (!id) return;
+
+      if (source === 'MANUAL') {
+          const currentExpenses = trip.manualExpenses || [];
+          if(window.confirm("이 지출 내역을 삭제하시겠습니까?")) {
+            onUpdateManualExpenses(currentExpenses.filter(e => e.id !== id));
+          }
+      } else if (source === 'BLOCK' && onRemoveBlockExpense) {
+          // Block expenses have their own confirm in the handler
+          onRemoveBlockExpense(id);
       }
   };
 
@@ -115,41 +158,47 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
     <div className="space-y-6 pb-20">
       
       {/* 1. Overview Card */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-[#e2e8f0] relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#dbeafe] rounded-bl-full -mr-10 -mt-10 pointer-events-none opacity-50"></div>
+      <div className="bg-white rounded-3xl shadow-soft border border-white p-8 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-blue-50 rounded-bl-full -mr-12 -mt-12 pointer-events-none opacity-50 group-hover:scale-105 transition-transform duration-700"></div>
           
-          <div className="flex justify-between items-center mb-4 relative z-10">
-              <h2 className="text-sm font-bold text-[#64748b] uppercase tracking-widest">Total Budget</h2>
-              <button onClick={() => setIsEditingBudget(!isEditingBudget)} className="text-[#cbd5e1] hover:text-[#3b82f6]">
+          <div className="flex justify-between items-center mb-6 relative z-10">
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-400 uppercase tracking-widest">
+                  <Wallet size={16} /> 총 예산
+              </div>
+              <button onClick={() => setIsEditingBudget(!isEditingBudget)} className="p-2 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-all">
                   <Edit2 size={16} />
               </button>
           </div>
           
-          <div className="mb-6 relative z-10">
+          <div className="mb-8 relative z-10">
               {isEditingBudget ? (
-                  <div className="flex gap-2">
+                  <div className="flex gap-3 items-center">
                       <input 
-                          className="text-3xl font-bold w-full border-b border-[#3b82f6] outline-none font-hand"
+                          className="text-4xl font-bold w-full border-b-2 border-blue-500 outline-none bg-transparent"
                           value={tempBudget}
                           onChange={(e) => setTempBudget(e.target.value)}
                           type="number"
+                          autoFocus
                       />
-                      <button onClick={handleSaveBudget} className="bg-[#3b82f6] text-white px-3 rounded-lg"><Check /></button>
+                      <button onClick={handleSaveBudget} className="bg-blue-500 text-white p-2 rounded-xl shadow-lg hover:bg-blue-600 transition-colors"><Check size={20}/></button>
                   </div>
               ) : (
-                  <div className="text-3xl font-bold font-hand text-[#1e293b]">{trip.budget.toLocaleString()} KRW</div>
+                  <div className="text-4xl font-bold text-slate-800">{trip.budget.toLocaleString()} <span className="text-lg text-slate-400 font-medium">원</span></div>
               )}
-              <div className="text-sm text-[#334155] mt-1 font-medium">
-                  Spent: <span className="font-bold text-[#1e40af]">{totalSpent.toLocaleString()}</span> 
-                  <span className="mx-2 text-[#cbd5e1]">|</span>
-                  Remaining: <span className={`font-bold ${remaining < 0 ? 'text-red-500' : 'text-[#64748b]'}`}>{remaining.toLocaleString()}</span>
+              <div className="flex items-center gap-4 mt-4 text-sm font-medium">
+                  <div className="bg-blue-50 px-3 py-1.5 rounded-lg text-blue-700">
+                      지출: <span className="font-bold">{totalSpent.toLocaleString()}</span>
+                  </div>
+                  <div className={`${remaining < 0 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'} px-3 py-1.5 rounded-lg transition-colors`}>
+                      잔액: <span className="font-bold">{remaining.toLocaleString()}</span>
+                  </div>
               </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="h-4 bg-[#f1f5f9] rounded-full overflow-hidden relative border border-[#e2e8f0]">
+          <div className="h-4 bg-slate-100 rounded-full overflow-hidden relative">
               <div 
-                  className="h-full bg-[#3b82f6] transition-all duration-500" 
+                  className="h-full bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all duration-1000 ease-out" 
                   style={{ width: `${Math.min((totalSpent / (trip.budget || 1)) * 100, 100)}%` }} 
               />
           </div>
@@ -157,20 +206,23 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
 
       {/* 2. Chart */}
       {totalSpent > 0 && (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-[#e2e8f0] flex flex-col items-center">
-              <h3 className="text-xs font-bold text-[#94a3b8] uppercase self-start mb-6">Spending Analysis</h3>
-              <div className="w-full h-48 flex items-center gap-6">
-                  <div className="h-full aspect-square relative">
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-soft border border-white flex flex-col items-center">
+              <div className="flex items-center gap-2 self-start mb-6 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <TrendingUp size={16} /> 지출 분석
+              </div>
+              <div className="w-full flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+                  <div className="w-full sm:w-1/2 h-56 relative">
                       <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                               <Pie
                                   data={expensesByCategory}
                                   cx="50%"
                                   cy="50%"
-                                  innerRadius={45}
-                                  outerRadius={65}
-                                  paddingAngle={4}
+                                  innerRadius={60}
+                                  outerRadius={85}
+                                  paddingAngle={5}
                                   dataKey="value"
+                                  cornerRadius={6}
                                   stroke="none"
                               >
                                   {expensesByCategory.map((entry, index) => (
@@ -178,23 +230,24 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
                                   ))}
                               </Pie>
                               <Tooltip 
-                                contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+                                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', padding: '12px' }}
                                 formatter={(val: number) => val.toLocaleString() + ' KRW'}
                               />
                           </PieChart>
                       </ResponsiveContainer>
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none flex-col">
-                         <span className="text-[10px] font-bold text-[#94a3b8] uppercase">Total</span>
+                         <span className="text-3xl font-bold text-slate-700">{Math.round((totalSpent/trip.budget)*100)}%</span>
+                         <span className="text-[10px] font-bold text-slate-400 uppercase">사용됨</span>
                       </div>
                   </div>
-                  <div className="flex-1 space-y-3">
+                  <div className="w-full sm:w-1/2 space-y-3 overflow-y-auto max-h-48 pr-2 custom-scrollbar">
                       {expensesByCategory.map(cat => (
-                          <div key={cat.name} className="flex justify-between items-center text-xs">
-                              <div className="flex items-center gap-2">
-                                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS_BY_CATEGORY[cat.name as ExpenseCategory] }}></div>
-                                  <span className="text-[#1e293b] font-bold capitalize tracking-wide">{cat.name.toLowerCase()}</span>
+                          <div key={cat.name} className="flex justify-between items-center text-xs group">
+                              <div className="flex items-center gap-2.5">
+                                  <div className="w-3 h-3 rounded-full shadow-sm ring-2 ring-white" style={{ backgroundColor: COLORS_BY_CATEGORY[cat.name as ExpenseCategory] }}></div>
+                                  <span className="text-slate-600 font-bold capitalize tracking-wide group-hover:text-slate-900 transition-colors">{cat.name.toLowerCase()}</span>
                               </div>
-                              <span className="font-bold text-[#334155]">{Math.round((cat.value / totalSpent) * 100)}%</span>
+                              <span className="font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md">{Math.round((cat.value / totalSpent) * 100)}%</span>
                           </div>
                       ))}
                   </div>
@@ -203,96 +256,97 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
       )}
 
       {/* 3. Expense List */}
-      <div className="bg-white rounded-lg shadow-sm border border-[#e2e8f0] overflow-hidden">
-          <div className="p-4 border-b border-[#e2e8f0] flex justify-between items-center bg-[#f8fafc]">
-              <h3 className="font-bold text-[#1e293b]">Expenses</h3>
+      <div className="bg-white rounded-3xl shadow-soft border border-white overflow-hidden min-h-[300px] flex flex-col">
+          <div className="p-6 border-b border-slate-50 flex justify-between items-center">
+              <h3 className="font-bold text-lg text-slate-800">최근 지출 내역</h3>
               <button 
                   onClick={() => setIsAddingExpense(!isAddingExpense)}
-                  className="bg-[#1e293b] text-white p-1.5 rounded-full shadow-lg hover:bg-[#334155] transition-transform active:scale-95"
+                  className={`p-2 rounded-full shadow-lg transition-all duration-300 ${isAddingExpense ? 'bg-slate-100 text-slate-500 rotate-45' : 'bg-slate-800 text-white hover:scale-110'}`}
               >
-                  {isAddingExpense ? <X size={18} /> : <Plus size={18} />}
+                  <Plus size={20} />
               </button>
           </div>
 
           {isAddingExpense && (
-              <div className="p-4 bg-[#eff6ff] space-y-3 animate-in slide-in-from-top-2 border-b border-[#3b82f6]/20">
+              <div className="p-6 bg-slate-50/50 space-y-4 animate-in slide-in-from-top-4">
                   <input 
-                      className="w-full p-2 rounded-lg border border-[#e2e8f0] text-sm outline-none font-hand"
-                      placeholder="Title (e.g. Flight to Rome)"
+                      className="w-full p-3 rounded-xl border-none bg-white shadow-sm text-sm outline-none font-medium placeholder-slate-400"
+                      placeholder="내용 (예: 로마행 비행기)"
                       value={newExp.title || ''}
                       onChange={(e) => setNewExp({...newExp, title: e.target.value})}
                   />
-                  <div className="flex gap-2">
-                      <input 
-                          type="number"
-                          className="flex-1 p-2 rounded-lg border border-[#e2e8f0] text-sm outline-none"
-                          placeholder="Amount"
-                          value={newExp.amount || ''}
-                          onChange={(e) => setNewExp({...newExp, amount: parseFloat(e.target.value)})}
-                      />
+                  <div className="grid grid-cols-2 gap-3">
+                      <div className="flex gap-2 bg-white rounded-xl p-1 shadow-sm">
+                          <input 
+                              type="number"
+                              className="flex-1 p-2 bg-transparent text-sm outline-none font-medium"
+                              placeholder="금액"
+                              value={newExp.amount || ''}
+                              onChange={(e) => setNewExp({...newExp, amount: parseFloat(e.target.value)})}
+                          />
+                          <select 
+                              className="bg-slate-50 rounded-lg text-xs font-bold text-slate-600 outline-none px-2"
+                              value={newExp.currency}
+                              onChange={(e) => setNewExp({...newExp, currency: e.target.value as Currency})}
+                          >
+                              <option value="KRW">KRW</option>
+                              <option value="EUR">EUR</option>
+                              <option value="USD">USD</option>
+                          </select>
+                      </div>
                       <select 
-                          className="p-2 rounded-lg border border-[#e2e8f0] text-sm outline-none bg-white"
-                          value={newExp.currency}
-                          onChange={(e) => setNewExp({...newExp, currency: e.target.value as Currency})}
-                      >
-                          <option value="KRW">KRW</option>
-                          <option value="EUR">EUR</option>
-                          <option value="USD">USD</option>
-                      </select>
-                  </div>
-                  <div className="flex gap-2">
-                      <select 
-                          className="flex-1 p-2 rounded-lg border border-[#e2e8f0] text-sm outline-none bg-white"
+                          className="w-full p-3 rounded-xl border-none bg-white shadow-sm text-sm outline-none font-medium text-slate-600"
                           value={newExp.category}
                           onChange={(e) => setNewExp({...newExp, category: e.target.value as ExpenseCategory})}
                       >
                           {Object.keys(COLORS_BY_CATEGORY).map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
-                      <button 
-                          onClick={() => setNewExp({...newExp, isPaid: !newExp.isPaid})}
-                          className={`flex-1 p-2 rounded-lg text-xs font-bold ${newExp.isPaid ? 'bg-[#3b82f6] text-white' : 'bg-[#e2e8f0] text-[#94a3b8]'}`}
-                      >
-                          {newExp.isPaid ? 'PAID' : 'PLANNED'}
-                      </button>
                   </div>
-                  <button onClick={handleAddExpense} className="w-full bg-[#1e293b] text-white py-2 rounded-lg font-bold text-sm shadow">Add Expense</button>
+                  <button 
+                      onClick={() => setNewExp({...newExp, isPaid: !newExp.isPaid})}
+                      className={`w-full p-3 rounded-xl text-xs font-bold transition-all shadow-sm ${newExp.isPaid ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}
+                  >
+                      상태: {newExp.isPaid ? '결제완료' : '지출예정'}
+                  </button>
+                  
+                  <button onClick={handleAddExpense} className="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg hover:bg-slate-700 hover:scale-[1.01] transition-all">지출 추가</button>
               </div>
           )}
 
-          <div className="divide-y divide-[#f1f5f9]">
-              {allExpenses.length === 0 && <div className="p-6 text-center text-[#94a3b8] text-sm font-hand text-lg">Empty pockets.</div>}
+          <div className="divide-y divide-slate-50 flex-1">
+              {allExpenses.length === 0 && <div className="p-10 text-center text-slate-400 text-sm">기록된 지출이 없습니다.</div>}
               {allExpenses.map((exp, idx) => (
-                  <div key={exp.id || idx} className="p-4 flex items-center justify-between hover:bg-[#eff6ff] group relative transition-colors">
-                      <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm`} style={{ backgroundColor: COLORS_BY_CATEGORY[exp.category as ExpenseCategory] || '#ccc' }}>
-                              {exp.category?.substring(0, 1)}
+                  <div key={exp.id || idx} className="p-5 flex items-center justify-between hover:bg-slate-50 group relative transition-colors">
+                      <div className="flex items-center gap-4 min-w-0 flex-1">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md shrink-0`} style={{ backgroundColor: COLORS_BY_CATEGORY[exp.category as ExpenseCategory] || '#ccc' }}>
+                              {ICONS_BY_CATEGORY[exp.category as ExpenseCategory] || <MoreHorizontal size={18} />}
                           </div>
-                          <div>
-                              <div className="font-bold font-hand text-lg text-[#1e293b]">{exp.title}</div>
-                              <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-[#94a3b8] mt-0.5 tracking-wide">
-                                  <span className={`px-1.5 py-0.5 rounded ${exp.isPaid ? 'bg-[#dbeafe] text-[#1e40af]' : 'bg-[#f1f5f9] text-[#64748b]'}`}>
-                                      {exp.isPaid ? 'Paid' : 'Planned'}
+                          <div className="min-w-0 flex-1 pr-2">
+                              <div className="font-bold text-slate-800 text-base truncate" title={exp.title}>{exp.title}</div>
+                              <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-slate-400 mt-0.5 tracking-wide">
+                                  <span className={`px-2 py-0.5 rounded-md ${exp.isPaid ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                      {exp.isPaid ? '완료' : '예정'}
                                   </span>
-                                  {exp.source === 'BLOCK' && <span className="text-[#cbd5e1]">• Schedule</span>}
+                                  {exp.source === 'BLOCK' && <span className="text-slate-300">• 일정</span>}
                               </div>
                           </div>
                       </div>
-                      <div className="text-right pr-8">
-                          <div className="font-bold text-[#334155] text-sm">{exp.kwn.toLocaleString()}</div>
+                      <div className="text-right shrink-0">
+                          <div className="font-bold text-slate-700 text-base">{exp.kwn.toLocaleString()}</div>
                           {exp.currency !== 'KRW' && (
-                              <div className="text-xs text-[#94a3b8]">{exp.amount.toLocaleString()} {exp.currency}</div>
+                              <div className="text-xs font-medium text-slate-400 mt-0.5">{exp.amount.toLocaleString()} {exp.currency}</div>
                           )}
                       </div>
                       
-                      {exp.source === 'MANUAL' && (
-                          <button 
-                              onClick={() => deleteManualExpense(exp.id)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-[#cbd5e1] hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Delete Expense"
-                          >
-                              <Trash2 size={16} />
-                          </button>
-                      )}
+                      {/* Delete Button - Fixed: Z-Index 50 to stay above everything */}
+                      <button 
+                          type="button"
+                          onClick={(e) => handleDelete(exp.id, exp.source, e)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full text-slate-300 hover:text-rose-600 bg-white hover:bg-rose-50 shadow-sm border border-slate-100 opacity-0 group-hover:opacity-100 transition-all duration-200 z-50 cursor-pointer"
+                          title="삭제"
+                      >
+                          <Trash2 size={16} />
+                      </button>
                   </div>
               ))}
           </div>

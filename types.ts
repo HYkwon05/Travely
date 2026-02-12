@@ -1,3 +1,4 @@
+
 export type Currency = 'KRW' | 'USD' | 'EUR' | 'JPY';
 
 export enum BlockType {
@@ -33,7 +34,7 @@ export interface DayPlan {
   blocks: ContentBlock[];
 }
 
-export type PlaceCategory = 'RESTAURANT' | 'CAFE' | 'GELATO' | 'BAR' | 'ATTRACTION' | 'ACCOMMODATION';
+export type PlaceCategory = 'RESTAURANT' | 'CAFE' | 'GELATO' | 'BAR' | 'ATTRACTION' | 'ACCOMMODATION' | 'TRANSPORT';
 
 export interface SavedPlace {
   id: string;
@@ -48,6 +49,7 @@ export interface SavedPlace {
   isSaved: boolean;
   bookingStatus?: BookingStatus;
   googleMapLink?: string;
+  region?: string; // New: User defined region tag (e.g., "Rome", "Dolomites")
 }
 
 export type ScrapPlatform = 'BLOG' | 'INSTAGRAM' | 'YOUTUBE' | 'OTHER';

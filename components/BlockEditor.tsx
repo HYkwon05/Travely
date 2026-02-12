@@ -13,11 +13,11 @@ interface BlockEditorProps {
 }
 
 const TRANSPORT_MODES: { mode: TransportMode; icon: React.ReactNode; label: string }[] = [
-  { mode: 'WALK', icon: <Footprints size={12} />, label: 'Walk' },
-  { mode: 'BUS', icon: <Bus size={12} />, label: 'Bus' },
-  { mode: 'TRAIN', icon: <Train size={12} />, label: 'Train' },
-  { mode: 'TAXI', icon: <Car size={12} />, label: 'Car' },
-  { mode: 'FLIGHT', icon: <Plane size={12} />, label: 'Fly' },
+  { mode: 'WALK', icon: <Footprints size={12} />, label: '도보' },
+  { mode: 'BUS', icon: <Bus size={12} />, label: '버스' },
+  { mode: 'TRAIN', icon: <Train size={12} />, label: '기차' },
+  { mode: 'TAXI', icon: <Car size={12} />, label: '차량' },
+  { mode: 'FLIGHT', icon: <Plane size={12} />, label: '항공' },
 ];
 
 const RAINBOW_PALETTE = [
@@ -32,10 +32,10 @@ const RAINBOW_PALETTE = [
 ];
 
 const BOOKING_STATUSES: { status: BookingStatus; label: string; color: string }[] = [
-    { status: 'NONE', label: 'Plan', color: 'bg-gray-100 text-gray-500 border-gray-200' },
-    { status: 'BOOKED', label: 'Booked', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-    { status: 'PENDING', label: 'Need', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-    { status: 'CANCELED', label: 'Cancel', color: 'bg-red-100 text-red-700 border-red-200' },
+    { status: 'NONE', label: '계획', color: 'bg-slate-100 text-slate-500' },
+    { status: 'BOOKED', label: '예약됨', color: 'bg-blue-50 text-blue-600' },
+    { status: 'PENDING', label: '필요', color: 'bg-amber-50 text-amber-600' },
+    { status: 'CANCELED', label: '취소', color: 'bg-red-50 text-red-600' },
 ];
 
 export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) => {
@@ -101,47 +101,47 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
       handleUpdateBlock(activeLocationBlock.id, { children: newChildren });
   };
 
-  // --- DETAIL VIEW (Unchanged Logic, just clean style) ---
+  // --- DETAIL VIEW (Soft Pinterest Style) ---
   if (activeLocationId && activeLocationBlock) {
       return (
-          <div className="absolute inset-0 z-50 flex flex-col bg-white animate-in slide-in-from-right duration-200">
+          <div className="absolute inset-0 z-50 flex flex-col bg-white/95 backdrop-blur-xl animate-in slide-in-from-right duration-300 rounded-2xl">
               {/* Header */}
-              <div className="flex-none px-4 py-3 border-b flex items-center gap-3 bg-white/80 backdrop-blur sticky top-0 z-10">
-                  <button onClick={() => setActiveLocationId(null)} className="p-2 hover:bg-gray-100 rounded-full text-slate-600">
+              <div className="flex-none px-6 py-4 border-b border-slate-100 flex items-center gap-4 bg-white/50 sticky top-0 z-10">
+                  <button onClick={() => setActiveLocationId(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
                       <ArrowLeft size={20} />
                   </button>
                   <div className="flex-1">
                       <input 
-                          className="font-bold text-xl outline-none w-full text-slate-800 placeholder-slate-300 bg-transparent"
+                          className="font-bold text-2xl outline-none w-full text-slate-800 placeholder-slate-300 bg-transparent"
                           value={activeLocationBlock.content}
-                          placeholder="Location Name"
+                          placeholder="장소 이름"
                           onChange={(e) => handleUpdateBlock(activeLocationBlock.id, { content: e.target.value })}
                       />
                   </div>
               </div>
 
               {/* Detail Content */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50">
-                   {/* Meta Controls */}
-                   <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-3">
-                        <div className="flex items-center gap-2 border-b border-slate-50 pb-2">
-                            <Clock size={16} className="text-slate-400" />
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
+                   {/* Meta Controls - Soft Card */}
+                   <div className="bg-white p-4 rounded-2xl shadow-soft border border-white/50 flex flex-col gap-4">
+                        <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
+                            <Clock size={18} className="text-slate-400" />
                             <input 
                                 type="time"
-                                className="font-semibold text-slate-600 bg-transparent outline-none"
+                                className="font-semibold text-lg text-slate-600 bg-transparent outline-none cursor-pointer"
                                 value={activeLocationBlock.meta?.time || ''}
                                 onChange={(e) => handleUpdateBlock(activeLocationBlock.id, { meta: { ...activeLocationBlock.meta, time: e.target.value } })}
                             />
                         </div>
-                        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
                             {BOOKING_STATUSES.map(status => (
                                 <button
                                     key={status.status}
                                     onClick={() => handleUpdateBlock(activeLocationBlock.id, { meta: { ...activeLocationBlock.meta, status: status.status } })}
-                                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all whitespace-nowrap ${
+                                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap shadow-sm border border-transparent ${
                                         activeLocationBlock.meta?.status === status.status 
                                         ? status.color 
-                                        : 'bg-white text-slate-400 border-slate-200'
+                                        : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'
                                     }`}
                                 >
                                     {status.label}
@@ -153,13 +153,13 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
                    {/* Children Items */}
                    <div className="space-y-3">
                         {(activeLocationBlock.children || []).map(child => (
-                            <div key={child.id} className="group flex items-start gap-3 bg-white p-3 rounded-xl shadow-sm border border-slate-100">
+                            <div key={child.id} className="group flex items-start gap-3 bg-white p-4 rounded-2xl shadow-sm border border-transparent hover:shadow-md transition-all duration-200">
                                 <div className="flex-1">
                                     {child.type === BlockType.TEXT && (
                                         <textarea
-                                            className="w-full resize-none outline-none text-slate-700 bg-transparent"
+                                            className="w-full resize-none outline-none text-slate-700 bg-transparent leading-relaxed"
                                             rows={1}
-                                            placeholder="Write a note..."
+                                            placeholder="메모 작성..."
                                             value={child.content}
                                             onChange={(e) => {
                                                 handleUpdateChild(child.id, { content: e.target.value });
@@ -169,16 +169,16 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
                                         />
                                     )}
                                     {child.type === BlockType.TODO && (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-3">
                                             <button 
                                                 onClick={() => handleUpdateChild(child.id, { checked: !child.checked })}
                                                 className={`transition-colors ${child.checked ? 'text-blue-500' : 'text-slate-300'}`}
                                             >
-                                                <CheckSquare size={18} />
+                                                <CheckSquare size={20} />
                                             </button>
                                             <input
-                                                className={`flex-1 outline-none bg-transparent ${child.checked ? 'line-through text-slate-400' : 'text-slate-700'}`}
-                                                placeholder="Task..."
+                                                className={`flex-1 outline-none bg-transparent text-lg ${child.checked ? 'line-through text-slate-400' : 'text-slate-700'}`}
+                                                placeholder="할 일..."
                                                 value={child.content}
                                                 onChange={(e) => handleUpdateChild(child.id, { content: e.target.value })}
                                             />
@@ -187,45 +187,49 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
                                     {child.type === BlockType.IMAGE && (
                                         <div>
                                             {child.content ? (
-                                                <img src={child.content} className="rounded-lg max-h-48 object-cover w-full mb-2" alt="attached" />
+                                                <div className="rounded-xl overflow-hidden mb-2 shadow-sm">
+                                                    <img src={child.content} className="max-h-64 w-full object-cover hover:scale-105 transition-transform duration-500" alt="attached" />
+                                                </div>
                                             ) : null}
                                             <input 
-                                                className="w-full text-xs text-slate-400 bg-slate-50 p-2 rounded"
-                                                placeholder="Image URL..."
+                                                className="w-full text-xs text-slate-400 bg-slate-50 p-2.5 rounded-xl border border-transparent focus:bg-white focus:border-blue-100 transition-all outline-none"
+                                                placeholder="이미지 URL 붙여넣기..."
                                                 value={child.content}
                                                 onChange={(e) => handleUpdateChild(child.id, { content: e.target.value })}
                                             />
                                         </div>
                                     )}
                                     {child.type === BlockType.EXPENSE && (
-                                        <div className="flex items-center gap-2">
-                                            <DollarSign size={14} className="text-slate-400" />
-                                            <input className="flex-1 outline-none font-medium" placeholder="Expense..." value={child.content} onChange={(e) => handleUpdateChild(child.id, { content: e.target.value })} />
-                                            <input className="w-16 text-right text-sm bg-slate-50 rounded p-1" type="number" placeholder="0" value={child.meta?.amount} onChange={(e) => handleUpdateChild(child.id, { meta: {...child.meta, amount: e.target.value} })} />
+                                        <div className="flex items-center gap-2 bg-slate-50 rounded-xl p-2">
+                                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-400 shadow-sm"><DollarSign size={14} /></div>
+                                            <input className="flex-1 outline-none font-medium bg-transparent text-sm" placeholder="지출 내역..." value={child.content} onChange={(e) => handleUpdateChild(child.id, { content: e.target.value })} />
+                                            <input className="w-20 text-right text-sm bg-white rounded-lg p-1.5 shadow-sm outline-none" type="number" placeholder="0" value={child.meta?.amount} onChange={(e) => handleUpdateChild(child.id, { meta: {...child.meta, amount: e.target.value} })} />
                                         </div>
                                     )}
                                 </div>
-                                <button onClick={() => handleRemoveChild(child.id)} className="text-slate-300 hover:text-red-500"><X size={14} /></button>
+                                <button onClick={() => handleRemoveChild(child.id)} className="text-slate-300 hover:text-red-400 p-1 rounded-full hover:bg-red-50 transition-colors"><X size={16} /></button>
                             </div>
                         ))}
                    </div>
               </div>
               
-              {/* Detail Toolbar */}
-              <div className="p-2 border-t bg-white flex justify-center gap-4">
-                  <button onClick={() => handleAddChild(BlockType.TEXT)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"><Type size={18} /></button>
-                  <button onClick={() => handleAddChild(BlockType.TODO)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"><CheckSquare size={18} /></button>
-                  <button onClick={() => handleAddChild(BlockType.IMAGE)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"><ImageIcon size={18} /></button>
-                  <button onClick={() => handleAddChild(BlockType.EXPENSE)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full"><DollarSign size={18} /></button>
+              {/* Detail Toolbar - Floating Pill */}
+              <div className="p-4 bg-white border-t border-slate-50 flex justify-center sticky bottom-0 z-20">
+                  <div className="flex gap-2 bg-slate-100 p-1.5 rounded-full shadow-inner">
+                    <button onClick={() => handleAddChild(BlockType.TEXT)} className="p-3 text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm rounded-full transition-all"><Type size={18} /></button>
+                    <button onClick={() => handleAddChild(BlockType.TODO)} className="p-3 text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm rounded-full transition-all"><CheckSquare size={18} /></button>
+                    <button onClick={() => handleAddChild(BlockType.IMAGE)} className="p-3 text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm rounded-full transition-all"><ImageIcon size={18} /></button>
+                    <button onClick={() => handleAddChild(BlockType.EXPENSE)} className="p-3 text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm rounded-full transition-all"><DollarSign size={18} /></button>
+                  </div>
               </div>
           </div>
       );
   }
 
-  // --- MAIN LIST (COMPACT DND) ---
+  // --- MAIN LIST ---
   return (
-    <div className="space-y-0 pb-24 relative">
-      {/* Color Picker Overlay (Backdrop) */}
+    <div className="space-y-3 pb-24 relative">
+      {/* Color Picker Overlay */}
       {activeColorPickerId && (
           <div 
             className="fixed inset-0 z-[60] bg-transparent"
@@ -236,94 +240,107 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
       <DragDropContext onDragEnd={handleDragEnd}>
         <Droppable droppableId="blocks">
           {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
+            <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
               {blocks.map((block, index) => (
                 <Draggable key={block.id} draggableId={block.id} index={index}>
                   {(provided, snapshot) => (
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      className={`transition-all ${snapshot.isDragging ? 'opacity-90 scale-[1.02] z-50' : ''}`}
+                      className={`transition-all duration-300 ${snapshot.isDragging ? 'opacity-90 scale-[1.02] z-50 rotate-1' : ''}`}
                     >
                       
-                      {/* LOCATION BLOCK - SIMPLIFIED */}
+                      {/* LOCATION BLOCK - SOFT CARD */}
                       {block.type === BlockType.LOCATION && (
                           <div 
-                              className="group relative flex items-center gap-3 p-3 my-1.5 bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-slate-100 hover:border-blue-200 transition-all cursor-pointer"
+                              className="group relative flex items-stretch gap-0 bg-white/80 backdrop-blur-sm rounded-2xl shadow-soft border border-white/50 hover:shadow-lg hover:bg-white transition-all cursor-pointer overflow-hidden"
                               onClick={() => setActiveLocationId(block.id)}
                           >
-                              {/* Drag Handle */}
-                              <div {...provided.dragHandleProps} className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing p-1">
-                                  <GripVertical size={14} />
+                              {/* Drag Handle Area */}
+                              <div {...provided.dragHandleProps} className="w-8 flex items-center justify-center text-slate-300 hover:text-slate-400 cursor-grab active:cursor-grabbing hover:bg-slate-50 transition-colors">
+                                  <GripVertical size={16} />
                               </div>
 
-                              {/* Main Content (Name) - Left Aligned */}
-                              <div className="flex-1 min-w-0 flex items-center">
-                                  <div className="font-semibold text-base text-slate-800 truncate">{block.content || 'Location'}</div>
-                              </div>
+                              {/* Content Area */}
+                              <div className="flex-1 py-4 pr-4 flex items-center gap-4">
+                                  {/* Name Left */}
+                                  <div className="flex-1 min-w-0">
+                                      <div className="font-bold text-lg text-slate-800 truncate leading-tight">{block.content || '장소 이름'}</div>
+                                  </div>
 
-                              {/* Time Column - Right Aligned */}
-                              <div className="flex flex-col items-center shrink-0 border-l border-slate-100 pl-2">
-                                  <input
-                                      type="time"
-                                      className="bg-transparent font-bold text-sm text-slate-700 text-center outline-none cursor-pointer hover:text-blue-600 min-w-[80px]"
-                                      value={block.meta?.time || ''}
-                                      onChange={(e) => handleUpdateBlock(block.id, { meta: { ...block.meta, time: e.target.value } })}
-                                      onClick={(e) => e.stopPropagation()}
-                                  />
+                                  {/* Time Right - Pill Shape */}
+                                  <div className="shrink-0">
+                                       <div 
+                                        className="bg-slate-50 border border-slate-100 rounded-xl px-2 py-2 flex items-center justify-center group-hover:border-blue-100 group-hover:bg-blue-50/50 transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                       >
+                                          <input
+                                              type="time"
+                                              className="bg-transparent font-bold text-sm text-slate-600 text-center outline-none cursor-pointer w-[95px] group-hover:text-blue-600 transition-colors"
+                                              value={block.meta?.time || ''}
+                                              onChange={(e) => handleUpdateBlock(block.id, { meta: { ...block.meta, time: e.target.value } })}
+                                          />
+                                       </div>
+                                  </div>
                               </div>
                               
                               <button 
                                   onClick={(e) => { e.stopPropagation(); handleRemoveBlock(block.id); }}
-                                  className="text-slate-200 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  className="absolute top-2 right-2 p-1.5 text-slate-300 hover:text-red-400 rounded-full hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100"
                               >
                                   <X size={14} />
                               </button>
                           </div>
                       )}
 
-                      {/* TRANSPORT BLOCK - RAINBOW PICKER */}
+                      {/* TRANSPORT BLOCK - ELEGANT LINE */}
                       {block.type === BlockType.TRANSPORT && (
-                           <div className="flex items-center gap-2 py-1 px-4 group relative">
-                              <div {...provided.dragHandleProps} className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100">
-                                  <GripVertical size={12} />
+                           <div className="flex items-center gap-2 py-2 px-2 md:px-6 group relative">
+                              <div {...provided.dragHandleProps} className="absolute left-0 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                  <GripVertical size={14} />
                               </div>
-                              <div className="flex-1 flex items-center justify-center relative h-6">
-                                  {/* Line background */}
+                              <div className="flex-1 flex items-center justify-center relative h-10">
+                                  {/* Dotted Line */}
                                   <div 
-                                      className="absolute inset-x-0 top-1/2 h-px border-t border-dashed transition-colors opacity-60"
+                                      className="absolute inset-x-0 top-1/2 h-0 border-t-2 border-dotted transition-colors opacity-40"
                                       style={{ borderColor: block.meta?.color || '#cbd5e1' }}
                                   ></div>
                                   
-                                  <div className="relative z-10 flex gap-1 bg-white/50 backdrop-blur px-2 rounded-full border border-slate-200 shadow-sm scale-90 items-center">
-                                      {TRANSPORT_MODES.map(m => (
-                                          <button
-                                              key={m.mode}
-                                              onClick={() => handleUpdateBlock(block.id, { meta: { ...block.meta, mode: m.mode } })}
-                                              className={`p-1 rounded-full transition-colors ${block.meta?.mode === m.mode ? 'bg-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
-                                              style={block.meta?.mode === m.mode ? { color: block.meta?.color || '#3b82f6' } : {}}
-                                          >
-                                              {m.icon}
-                                          </button>
-                                      ))}
+                                  {/* Floating Pill - FIXED & OVERFLOW HANDLING */}
+                                  {/* Removed overflow-hidden from parent pill to allow color picker popout */}
+                                  <div className="relative z-10 flex gap-2 bg-white/90 backdrop-blur-md pl-2 pr-2 py-1.5 rounded-full border border-white shadow-sm hover:shadow-md transition-all items-center max-w-full">
                                       
-                                      <div className="w-px h-3 bg-slate-200 mx-1"></div>
+                                      {/* Mode Selector - Wrapped to handle scrolling separately */}
+                                      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar shrink w-full max-w-[150px] md:max-w-[200px]">
+                                        {TRANSPORT_MODES.map(m => (
+                                            <button
+                                                key={m.mode}
+                                                onClick={() => handleUpdateBlock(block.id, { meta: { ...block.meta, mode: m.mode } })}
+                                                className={`p-1.5 rounded-full transition-all duration-300 shrink-0 ${block.meta?.mode === m.mode ? 'bg-slate-100 scale-105 shadow-inner' : 'text-slate-300 hover:text-slate-500 hover:bg-slate-50'}`}
+                                                style={block.meta?.mode === m.mode ? { color: block.meta?.color || '#3b82f6' } : {}}
+                                            >
+                                                {m.icon}
+                                            </button>
+                                        ))}
+                                      </div>
                                       
-                                      {/* Color Picker Trigger */}
-                                      <div className="relative">
+                                      <div className="w-px h-4 bg-slate-200 mx-1 shrink-0"></div>
+                                      
+                                      {/* Color Dot - Absolute Popout */}
+                                      <div className="relative shrink-0">
                                           <button 
-                                              className="w-3 h-3 rounded-full border border-slate-200 shadow-sm shrink-0 hover:scale-125 transition-transform"
+                                              className="w-5 h-5 rounded-full border-2 border-white shadow-sm shrink-0 hover:scale-110 transition-transform"
                                               style={{ backgroundColor: block.meta?.color || '#94a3b8' }}
                                               onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(block.id); }}
                                           />
                                           
-                                          {/* Rainbow Palette Popup */}
+                                          {/* Rainbow Picker Popup - Higher Z-Index */}
                                           {activeColorPickerId === block.id && (
-                                              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white p-2 rounded-xl shadow-xl border border-slate-100 z-[70] flex gap-2 animate-in fade-in zoom-in-95">
+                                              <div className="absolute top-8 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-xl p-2 rounded-2xl shadow-xl border border-white/50 z-[100] flex gap-2 animate-in fade-in zoom-in-95 overflow-x-auto max-w-[200px] no-scrollbar">
                                                   {RAINBOW_PALETTE.map(c => (
                                                       <button 
                                                           key={c.hex}
-                                                          className="w-5 h-5 rounded-full border border-slate-100 hover:scale-125 transition-transform"
+                                                          className="w-6 h-6 rounded-full border-2 border-white hover:scale-125 transition-transform shadow-sm shrink-0"
                                                           style={{ backgroundColor: c.hex }}
                                                           title={c.name}
                                                           onClick={(e) => {
@@ -338,12 +355,12 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
                                       </div>
 
                                       <input 
-                                         className="w-10 text-[10px] text-center bg-transparent outline-none font-medium text-slate-500"
-                                         placeholder="15m"
+                                         className="w-12 text-xs text-center bg-transparent outline-none font-bold text-slate-500 focus:text-slate-800 transition-colors shrink-0"
+                                         placeholder="15분"
                                          value={block.meta?.duration || ''}
                                          onChange={(e) => handleUpdateBlock(block.id, { meta: { ...block.meta, duration: e.target.value } })}
                                       />
-                                      <button onClick={() => handleRemoveBlock(block.id)} className="text-slate-300 hover:text-red-400 ml-1"><X size={10} /></button>
+                                      <button onClick={() => handleRemoveBlock(block.id)} className="text-slate-300 hover:text-red-400 ml-1 p-1 hover:bg-red-50 rounded-full transition-all shrink-0"><X size={14} /></button>
                                   </div>
                               </div>
                           </div>
@@ -359,18 +376,18 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
       </DragDropContext>
       
       {/* Floating Action Bar */}
-      <div className="fixed bottom-20 left-1/2 -translate-x-1/2 flex gap-3 z-40 bg-white/90 backdrop-blur-md p-1.5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-white/50">
+      <div className="fixed bottom-28 left-1/2 -translate-x-1/2 flex gap-3 z-40 bg-white/80 backdrop-blur-xl p-2 rounded-full shadow-glow border border-white/50 no-print">
         <button 
             onClick={() => handleAddBlock(BlockType.LOCATION)}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-full shadow hover:bg-slate-700 transition-all font-semibold text-xs"
+            className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 text-white rounded-full shadow-lg hover:bg-slate-700 hover:shadow-xl hover:-translate-y-0.5 transition-all font-bold text-xs whitespace-nowrap"
         >
-            <MapPin size={14} /> Place
+            <MapPin size={16} /> 장소 추가
         </button>
         <button 
             onClick={() => handleAddBlock(BlockType.TRANSPORT)}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-full shadow-sm hover:bg-slate-50 transition-all font-semibold text-xs"
+            className="flex items-center gap-2 px-5 py-2.5 bg-white text-slate-600 border border-slate-100 rounded-full shadow-sm hover:bg-slate-50 hover:border-slate-300 hover:-translate-y-0.5 transition-all font-bold text-xs whitespace-nowrap"
         >
-            <ArrowDown size={14} /> Move
+            <ArrowDown size={16} /> 이동 추가
         </button>
       </div>
 
