@@ -328,7 +328,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      className={`transition-all duration-300 ${snapshot.isDragging ? 'opacity-90 scale-[1.02] z-50 rotate-1' : ''}`}
+                      className={`transition-all duration-300 ${snapshot.isDragging ? 'opacity-90 scale-[1.02] z-50 rotate-1' : ''} ${activeColorPickerId === block.id ? 'z-[70] relative' : ''}`}
                     >
                       
                       {/* LOCATION BLOCK - SOFT CARD */}
