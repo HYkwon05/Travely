@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trip, Scrap, ScrapPlatform, ManualExpense, ChecklistItem, ChecklistGroup, TravelDoc } from '../types';
 import { BudgetTracker } from './BudgetTracker';
-import { Sun, Calculator, Clock, Wallet, BookOpen, Instagram, Youtube, Link as LinkIcon, Plus, X, ExternalLink, CheckSquare, FileText, Image, LayoutGrid, Luggage, Trash2, Edit2, Upload, Download } from 'lucide-react';
+import { Sun, CloudRain, Cloud, CloudLightning, Search, Sunrise, Sunset, Calculator, Wallet, BookOpen, Instagram, Youtube, Link as LinkIcon, Plus, X, Upload, Download, LayoutGrid, CheckSquare, FileText } from 'lucide-react';
 
 interface TravelToolsProps {
   trip: Trip;
@@ -15,46 +15,79 @@ interface TravelToolsProps {
 
 type Tab = 'DASH' | 'CHECK' | 'DOCS' | 'BUDGET';
 
-const COLOR_NEBULA = '#C0DDDA';
-const COLOR_YELLOW = '#FBE29D';
-const COLOR_COPPER = '#775537';
-const COLOR_BORDER = '#FBE29D';
-const COLOR_LIGHT_YELLOW = '#FEFCE8';
-
 export const TravelTools: React.FC<TravelToolsProps> = ({ 
     trip, onUpdateScraps, onUpdateManualExpenses, onUpdateBudget, onUpdateChecklists, onUpdateDocuments, onImportTrip 
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('DASH');
-  const [newChecklistTitle, setNewChecklistTitle] = useState('');
   
-  // Real-time clock
-  const [now, setNow] = useState(new Date());
+  // Dashboard State
+  const [cityQuery, setCityQuery] = useState('Rome');
+  const [weatherData, setWeatherData] = useState<any>(null);
+  const [sunData, setSunData] = useState<any>(null);
+  const [isLoadingWeather, setIsLoadingWeather] = useState(false);
+
+  // Fetch Weather & Sun Data
+  const fetchWeather = async (city: string) => {
+      setIsLoadingWeather(true);
+      try {
+          // 1. Geocoding
+          const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`);
+          const geoData = await geoRes.json();
+          
+          if (!geoData.results || geoData.results.length === 0) {
+              alert('City not found');
+              setIsLoadingWeather(false);
+              return;
+          }
+          
+          const { latitude, longitude, name, timezone } = geoData.results[0];
+          
+          // 2. Weather & Sun
+          const weatherRes = await fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&daily=sunrise,sunset&timezone=${timezone}`
+          );
+          const weatherJson = await weatherRes.json();
+          
+          setWeatherData({
+              temp: Math.round(weatherJson.current.temperature_2m),
+              code: weatherJson.current.weather_code,
+              city: name
+          });
+          
+          setSunData({
+              sunrise: weatherJson.daily.sunrise[0].split('T')[1],
+              sunset: weatherJson.daily.sunset[0].split('T')[1],
+              timezone: timezone
+          });
+
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setIsLoadingWeather(false);
+      }
+  };
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
+      fetchWeather('Rome');
   }, []);
 
-  const getRomeTime = () => {
-    return now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Rome' });
-  };
-  
-  const getSeoulTime = () => {
-    return now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' });
+  const getWeatherIcon = (code: number) => {
+      if (code <= 1) return <Sun size={32} className="text-amber-500" />;
+      if (code <= 3) return <Cloud size={32} className="text-slate-400" />;
+      if (code <= 67) return <CloudRain size={32} className="text-blue-400" />;
+      return <CloudLightning size={32} className="text-purple-500" />;
   };
 
-  // Export Logic
   const handleExport = () => {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trip));
       const downloadAnchorNode = document.createElement('a');
       downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `travel_plan_${trip.title.replace(/\s+/g, '_')}.json`);
+      downloadAnchorNode.setAttribute("download", `travel_plan.json`);
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
   };
 
-  // Import Logic
   const handleImportClick = () => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -66,138 +99,87 @@ export const TravelTools: React.FC<TravelToolsProps> = ({
           reader.onload = (event) => {
               try {
                   const importedTrip = JSON.parse(event.target?.result as string);
-                  if (importedTrip && importedTrip.id && importedTrip.days) {
-                      onImportTrip(importedTrip);
-                  } else {
-                      alert("Invalid file format.");
-                  }
-              } catch (err) {
-                  alert("Error reading file.");
-              }
+                  if (importedTrip && importedTrip.id) onImportTrip(importedTrip);
+              } catch (err) { alert("Invalid file"); }
           };
           reader.readAsText(file);
       };
       input.click();
   };
 
-  // Checklist Group Handlers
-  const addChecklistGroup = () => {
-      if (!newChecklistTitle.trim()) return;
-      const newGroup: ChecklistGroup = {
-          id: crypto.randomUUID(),
-          title: newChecklistTitle.trim(),
-          items: []
-      };
-      onUpdateChecklists([...trip.checklists, newGroup]);
-      setNewChecklistTitle('');
-  };
-
-  const deleteChecklistGroup = (groupId: string) => {
-      if (confirm("Delete this entire checklist group?")) {
-          onUpdateChecklists(trip.checklists.filter(g => g.id !== groupId));
-      }
-  };
-
-  const updateChecklistGroupTitle = (groupId: string, newTitle: string) => {
-      onUpdateChecklists(trip.checklists.map(g => g.id === groupId ? { ...g, title: newTitle } : g));
-  };
-
-  // Checklist Item Handlers
-  const toggleCheck = (groupId: string, itemId: string) => {
-      onUpdateChecklists(trip.checklists.map(group => {
-          if (group.id !== groupId) return group;
-          return {
-              ...group,
-              items: group.items.map(item => item.id === itemId ? { ...item, checked: !item.checked } : item)
-          };
-      }));
-  };
-
-  const addItemToChecklist = (groupId: string, text: string) => {
-      const newItem: ChecklistItem = { id: crypto.randomUUID(), text, checked: false };
-      onUpdateChecklists(trip.checklists.map(group => {
-          if (group.id !== groupId) return group;
-          return { ...group, items: [...group.items, newItem] };
-      }));
-  };
-
-  const deleteCheckItem = (groupId: string, itemId: string) => {
-      onUpdateChecklists(trip.checklists.map(group => {
-          if (group.id !== groupId) return group;
-          return { ...group, items: group.items.filter(item => item.id !== itemId) };
-      }));
-  };
-
   return (
     <div className="h-full flex flex-col bg-transparent">
       
-      {/* Top Tab Bar */}
-      <div className="bg-white border-b px-4 pt-2 flex gap-8 overflow-x-auto no-scrollbar" style={{ borderColor: COLOR_BORDER }}>
-          <TabButton active={activeTab === 'DASH'} onClick={() => setActiveTab('DASH')} icon={<LayoutGrid size={18}/>} label="Dash" />
-          <TabButton active={activeTab === 'CHECK'} onClick={() => setActiveTab('CHECK')} icon={<CheckSquare size={18}/>} label="Check" />
-          <TabButton active={activeTab === 'DOCS'} onClick={() => setActiveTab('DOCS')} icon={<FileText size={18}/>} label="Docs" />
-          <TabButton active={activeTab === 'BUDGET'} onClick={() => setActiveTab('BUDGET')} icon={<Wallet size={18}/>} label="Budget" />
+      {/* Tab Navigation */}
+      <div className="bg-white/80 backdrop-blur border-b border-slate-200 px-4 pt-2 flex gap-6 justify-center">
+          <TabButton active={activeTab === 'DASH'} onClick={() => setActiveTab('DASH')} icon={<LayoutGrid size={18}/>} label="Dashboard" />
+          <TabButton active={activeTab === 'CHECK'} onClick={() => setActiveTab('CHECK')} icon={<CheckSquare size={18}/>} label="Checklist" />
+          <TabButton active={activeTab === 'DOCS'} onClick={() => setActiveTab('DOCS')} icon={<FileText size={18}/>} label="Documents" />
+          <TabButton active={activeTab === 'BUDGET'} onClick={() => setActiveTab('BUDGET')} icon={<Wallet size={18}/>} label="Wallet" />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-5 scroll-smooth">
         
-        {/* DASHBOARD TAB */}
+        {/* DASHBOARD */}
         {activeTab === 'DASH' && (
-            <div className="space-y-6">
-                {/* Weather & Time */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="p-5 rounded-lg flex flex-col justify-between h-32 relative overflow-hidden" style={{ backgroundColor: COLOR_YELLOW + '80' }}>
-                        <Sun size={64} className="text-[#f59e0b] absolute -right-2 -top-2 opacity-20" />
-                        <div className="flex items-center gap-2 text-[#92400e] text-[10px] font-bold uppercase tracking-wider">
-                            <Sun size={14} className="text-[#f59e0b]" /> Weather
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                
+                {/* Weather & Sun Widget */}
+                <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm border border-white p-5">
+                    <div className="flex gap-2 mb-4">
+                        <div className="relative flex-1">
+                            <input 
+                                className="w-full bg-white/50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm outline-none focus:border-blue-400 transition-colors"
+                                value={cityQuery}
+                                onChange={(e) => setCityQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && fetchWeather(cityQuery)}
+                                placeholder="Search city..."
+                            />
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         </div>
-                        <div className="z-10">
-                            <div className="text-3xl font-hand font-bold text-[#1e293b]">22°C</div>
-                            <div className="text-sm text-[#92400e]/80">Sunny, Rome</div>
-                        </div>
+                        <button onClick={() => fetchWeather(cityQuery)} className="bg-slate-800 text-white px-4 rounded-lg text-sm font-semibold">
+                            {isLoadingWeather ? '...' : 'Check'}
+                        </button>
                     </div>
-                    <div className="p-5 rounded-lg flex flex-col justify-between h-32 relative overflow-hidden" style={{ backgroundColor: COLOR_NEBULA + '80' }}>
-                        <Clock size={64} className="text-[#1e40af] absolute -right-2 -top-2 opacity-20" />
-                        <div className="flex items-center gap-2 text-[#1e40af] text-[10px] font-bold uppercase tracking-wider">
-                            <Clock size={14} className="text-[#1e40af]" /> Time
-                        </div>
-                        <div className="space-y-1 z-10 text-[#1e293b]">
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-xl font-hand font-bold">{getRomeTime()}</span>
-                                <span className="text-xs opacity-70">Rome</span>
-                            </div>
-                            <div className="flex justify-between items-baseline opacity-50">
-                                <span className="text-lg font-hand font-bold">{getSeoulTime()}</span>
-                                <span className="text-xs">Seoul</span>
+
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            {weatherData ? getWeatherIcon(weatherData.code) : <Sun className="text-slate-200" />}
+                            <div>
+                                <div className="text-3xl font-bold text-slate-800">{weatherData?.temp ?? '--'}°</div>
+                                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{weatherData?.city ?? 'Select City'}</div>
                             </div>
                         </div>
+                        
+                        {sunData && (
+                            <div className="flex flex-col gap-2 text-right">
+                                <div className="flex items-center gap-2 justify-end text-slate-600">
+                                    <span className="text-sm font-medium">{sunData.sunrise}</span>
+                                    <Sunrise size={16} className="text-amber-500" />
+                                </div>
+                                <div className="flex items-center gap-2 justify-end text-slate-600">
+                                    <span className="text-sm font-medium">{sunData.sunset}</span>
+                                    <Sunset size={16} className="text-indigo-400" />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
                 
-                {/* SHARE PLAN SECTION (Data Management) */}
-                <div className="bg-white rounded-lg shadow-sm border p-4" style={{ borderColor: COLOR_BORDER }}>
-                    <div className="flex items-center gap-2 mb-3 text-sm font-bold text-[#64748b] uppercase tracking-wider">
-                        <Luggage size={14} /> Share Plan
-                    </div>
-                    <div className="flex gap-3">
-                        <button 
-                            onClick={handleExport}
-                            className="flex-1 py-3 text-white rounded-lg font-bold text-sm shadow-md hover:brightness-110 transition-all flex items-center justify-center gap-2"
-                            style={{ backgroundColor: COLOR_COPPER }}
-                        >
-                            <Download size={16} /> Backup Plan
-                        </button>
-                        <button 
-                            onClick={handleImportClick}
-                            className="flex-1 py-3 bg-white border rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2"
-                            style={{ borderColor: COLOR_NEBULA, color: '#1e40af', backgroundColor: '#FFFDF5' }}
-                        >
-                            <Upload size={16} /> Load Plan
-                        </button>
-                    </div>
-                    <p className="text-[10px] text-[#94a3b8] mt-2 text-center">
-                        * Send the Backup file to your mom, then click 'Load Plan' on her phone.
-                    </p>
+                {/* Quick Actions */}
+                <div className="grid grid-cols-2 gap-4">
+                    <button onClick={handleExport} className="bg-white/70 hover:bg-white backdrop-blur rounded-xl p-4 border border-white shadow-sm flex flex-col items-center gap-2 transition-all group">
+                        <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Download size={20} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-600">Backup Plan</span>
+                    </button>
+                    <button onClick={handleImportClick} className="bg-white/70 hover:bg-white backdrop-blur rounded-xl p-4 border border-white shadow-sm flex flex-col items-center gap-2 transition-all group">
+                        <div className="w-10 h-10 rounded-full bg-green-50 text-green-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Upload size={20} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-600">Restore Plan</span>
+                    </button>
                 </div>
 
                 <CurrencyConverter />
@@ -205,51 +187,44 @@ export const TravelTools: React.FC<TravelToolsProps> = ({
             </div>
         )}
 
-        {/* CHECKLIST TAB */}
+        {/* Other Tabs (Keep logic, update UI for clean look) */}
         {activeTab === 'CHECK' && (
-            <div className="space-y-6 pb-20">
+             <div className="space-y-4 pb-20">
                 {trip.checklists.map(group => (
                     <CheckListSection 
                         key={group.id}
                         title={group.title} 
-                        icon={<CheckSquare size={18} style={{ color: COLOR_COPPER }}/>}
                         items={group.items} 
-                        onToggle={(itemId: string) => toggleCheck(group.id, itemId)}
-                        onAdd={(text: string) => addItemToChecklist(group.id, text)}
-                        onDelete={(itemId: string) => deleteCheckItem(group.id, itemId)}
-                        onDeleteGroup={() => deleteChecklistGroup(group.id)}
-                        onUpdateTitle={(newTitle: string) => updateChecklistGroupTitle(group.id, newTitle)}
+                        onToggle={(itemId: string) => {
+                             const newLists = trip.checklists.map(g => g.id === group.id ? {...g, items: g.items.map(i => i.id === itemId ? {...i, checked: !i.checked} : i)} : g);
+                             onUpdateChecklists(newLists);
+                        }}
+                        onAdd={(text: string) => {
+                            const newItem = { id: crypto.randomUUID(), text, checked: false };
+                            onUpdateChecklists(trip.checklists.map(g => g.id === group.id ? {...g, items: [...g.items, newItem]} : g));
+                        }}
+                        onDelete={(itemId: string) => {
+                             onUpdateChecklists(trip.checklists.map(g => g.id === group.id ? {...g, items: g.items.filter(i => i.id !== itemId)} : g));
+                        }}
+                        onDeleteGroup={() => onUpdateChecklists(trip.checklists.filter(g => g.id !== group.id))}
                     />
                 ))}
-                
-                {/* Add New Group */}
-                <div className="bg-white rounded-lg shadow-sm border p-4 flex items-center gap-2" style={{ borderColor: COLOR_BORDER }}>
-                    <Plus size={20} className="text-[#94a3b8]" />
-                    <input 
-                        className="flex-1 bg-transparent text-sm outline-none"
-                        placeholder="New List Name (e.g. Souvenirs)"
-                        value={newChecklistTitle}
-                        onChange={(e) => setNewChecklistTitle(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && addChecklistGroup()}
-                    />
-                    <button 
-                        onClick={addChecklistGroup}
-                        disabled={!newChecklistTitle.trim()}
-                        className="text-white px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50"
-                        style={{ backgroundColor: COLOR_NEBULA, color: COLOR_COPPER }}
-                    >
-                        Add List
-                    </button>
-                </div>
+                <button 
+                    onClick={() => {
+                        const title = prompt("New List Name:");
+                        if(title) onUpdateChecklists([...trip.checklists, { id: crypto.randomUUID(), title, items: [] }]);
+                    }}
+                    className="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-slate-400 font-bold text-sm hover:border-slate-400 hover:text-slate-600"
+                >
+                    + Add New List
+                </button>
             </div>
         )}
 
-        {/* DOCS TAB */}
         {activeTab === 'DOCS' && (
             <DocsSection trip={trip} onUpdateDocuments={onUpdateDocuments} />
         )}
 
-        {/* BUDGET TAB */}
         {activeTab === 'BUDGET' && (
             <BudgetTracker 
                 trip={trip} 
@@ -263,253 +238,130 @@ export const TravelTools: React.FC<TravelToolsProps> = ({
   );
 };
 
+// UI Components
 const TabButton = ({ active, onClick, icon, label }: any) => (
     <button 
         onClick={onClick} 
-        className={`flex flex-col items-center gap-1 pb-2 border-b-2 transition-colors min-w-[3rem] ${active ? 'text-[#1e293b]' : 'border-transparent text-[#94a3b8] hover:text-[#334155]'}`}
-        style={{ borderColor: active ? COLOR_NEBULA : 'transparent' }}
+        className={`flex flex-col items-center gap-1 pb-2 border-b-2 transition-all px-2 ${active ? 'text-slate-800 border-slate-800' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
     >
         {icon}
         <span className="text-[10px] font-bold uppercase tracking-wide">{label}</span>
     </button>
 );
 
-const CheckListSection = ({ title, icon, items, onToggle, onAdd, onDelete, onDeleteGroup, onUpdateTitle }: any) => {
-    const [inputValue, setInputValue] = useState('');
-    const [isEditingTitle, setIsEditingTitle] = useState(false);
-    const [tempTitle, setTempTitle] = useState(title);
-
-    const handleTitleSave = () => {
-        if (tempTitle.trim()) {
-            onUpdateTitle(tempTitle.trim());
-        } else {
-            setTempTitle(title);
-        }
-        setIsEditingTitle(false);
-    };
-
+const CheckListSection = ({ title, items, onToggle, onAdd, onDelete, onDeleteGroup }: any) => {
+    const [input, setInput] = useState('');
     return (
-        <div className="bg-white rounded-lg shadow-sm border overflow-hidden" style={{ borderColor: COLOR_BORDER }}>
-            <div className="p-4 border-b flex items-center justify-between font-bold text-[#1e293b]" style={{ backgroundColor: COLOR_LIGHT_YELLOW, borderColor: '#FDE68A' }}>
-                <div className="flex items-center gap-2 flex-1">
-                    {icon} 
-                    {isEditingTitle ? (
-                        <input 
-                            className="bg-white border border-[#C0DDDA] rounded px-1 outline-none text-lg font-hand w-full"
-                            value={tempTitle}
-                            onChange={(e) => setTempTitle(e.target.value)}
-                            onBlur={handleTitleSave}
-                            onKeyDown={(e) => e.key === 'Enter' && handleTitleSave()}
-                            autoFocus
-                        />
-                    ) : (
-                        <span onClick={() => setIsEditingTitle(true)} className="cursor-pointer hover:underline font-hand text-lg">{title}</span>
-                    )}
-                </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setIsEditingTitle(!isEditingTitle)} className="text-[#94a3b8] hover:text-[#775537]"><Edit2 size={14} /></button>
-                    <button onClick={onDeleteGroup} className="text-[#94a3b8] hover:text-red-500"><Trash2 size={14} /></button>
-                </div>
+        <div className="bg-white/80 backdrop-blur rounded-xl border border-white shadow-sm overflow-hidden">
+            <div className="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="font-bold text-slate-700">{title}</h3>
+                <button onClick={onDeleteGroup} className="text-xs text-red-400 hover:text-red-600">Delete</button>
             </div>
-            <div className="p-2 space-y-1">
-                {items.map((item: ChecklistItem) => (
-                    <div key={item.id} className="group flex items-center gap-3 p-2 hover:bg-[#FFFDF5] rounded-lg">
-                        <button 
-                            onClick={() => onToggle(item.id)}
-                            className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${item.checked ? 'bg-[#C0DDDA] border-[#C0DDDA] text-[#1e293b]' : 'border-[#FDE68A] hover:border-[#C0DDDA]'}`}
-                        >
+            <div className="p-3 space-y-2">
+                {items.map((item: any) => (
+                    <div key={item.id} className="flex items-center gap-3 group">
+                        <button onClick={() => onToggle(item.id)} className={`w-5 h-5 rounded border flex items-center justify-center ${item.checked ? 'bg-slate-800 border-slate-800 text-white' : 'border-slate-300'}`}>
                             {item.checked && <CheckSquare size={12} />}
                         </button>
-                        <span className={`flex-1 text-lg font-hand pt-1 ${item.checked ? 'text-[#94a3b8] line-through' : 'text-[#1e293b]'}`}>{item.text}</span>
-                        <button onClick={() => onDelete(item.id)} className="text-[#cbd5e1] hover:text-red-500 opacity-0 group-hover:opacity-100 p-1">
-                            <X size={14} />
-                        </button>
+                        <span className={`flex-1 text-sm ${item.checked ? 'line-through text-slate-300' : 'text-slate-700'}`}>{item.text}</span>
+                        <button onClick={() => onDelete(item.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400"><X size={14}/></button>
                     </div>
                 ))}
-                <div className="flex items-center gap-2 p-2">
-                    <Plus size={16} className="text-[#94a3b8]" />
-                    <input 
-                        className="flex-1 bg-transparent text-sm outline-none placeholder-[#94a3b8]"
-                        placeholder="Add new item..."
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' && inputValue.trim()) {
-                                onAdd(inputValue.trim());
-                                setInputValue('');
-                            }
-                        }}
-                    />
-                </div>
+                <input 
+                    className="w-full text-sm bg-transparent border-b border-transparent focus:border-blue-300 outline-none placeholder-slate-300 py-1"
+                    placeholder="Add item..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                        if(e.key === 'Enter' && input.trim()) {
+                            onAdd(input.trim());
+                            setInput('');
+                        }
+                    }}
+                />
             </div>
         </div>
     );
 };
 
 const DocsSection = ({ trip, onUpdateDocuments }: any) => {
-    // Mock upload handler
-    const handleUpload = () => {
-        const docName = prompt("Document Name (e.g. Flight Ticket):");
-        if (docName) {
-            const newDoc: TravelDoc = {
-                id: crypto.randomUUID(),
-                type: 'PDF',
-                name: docName,
-                url: '#'
-            };
-            onUpdateDocuments([...trip.documents, newDoc]);
-        }
+    const handleAdd = () => {
+        const name = prompt("Document Name:");
+        if (name) onUpdateDocuments([...trip.documents, { id: crypto.randomUUID(), type: 'PDF', name, url: '#' }]);
     };
-    
     return (
-        <div className="space-y-4">
-             <button 
-                onClick={handleUpload}
-                className="w-full py-8 border-2 border-dashed rounded-xl flex flex-col items-center justify-center text-[#94a3b8] hover:bg-[#FFFDF5] hover:border-[#C0DDDA] hover:text-[#775537] transition-all"
-                style={{ borderColor: '#FDE68A' }}
-             >
-                 <Plus size={32} className="mb-2 opacity-50" />
-                 <span className="text-sm font-medium">Add PDF, Image or QR</span>
+        <div className="grid grid-cols-2 gap-4">
+             <button onClick={handleAdd} className="h-32 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:bg-white hover:border-slate-400 transition-all">
+                 <Plus size={24} />
+                 <span className="text-xs font-bold mt-2">Add Doc</span>
              </button>
-
-             <div className="grid grid-cols-2 gap-4">
-                 {trip.documents.map((doc: TravelDoc) => (
-                     <div key={doc.id} className="bg-white p-4 rounded-xl border shadow-sm flex flex-col items-center text-center gap-3 relative group hover:shadow-md transition-shadow" style={{ borderColor: COLOR_BORDER }}>
-                         <div className="w-12 h-12 rounded-full flex items-center justify-center text-[#775537]" style={{ backgroundColor: COLOR_NEBULA }}>
-                             {doc.type === 'IMAGE' ? <Image size={24} /> : <FileText size={24} />}
-                         </div>
-                         <div className="text-lg font-hand font-bold text-[#1e293b] truncate w-full pt-1">{doc.name}</div>
-                         <div className="text-[10px] text-[#64748b] uppercase bg-[#FFFDF5] px-2 py-0.5 rounded font-bold">{doc.type}</div>
-                         <button 
-                             onClick={() => onUpdateDocuments(trip.documents.filter((d: any) => d.id !== doc.id))}
-                             className="absolute top-2 right-2 text-[#cbd5e1] hover:text-red-500 opacity-0 group-hover:opacity-100"
-                         >
-                             <X size={16} />
-                         </button>
-                     </div>
-                 ))}
-             </div>
+             {trip.documents.map((doc: any) => (
+                 <div key={doc.id} className="h-32 bg-white rounded-xl shadow-sm border border-slate-100 p-4 flex flex-col items-center justify-center relative group">
+                     <FileText size={32} className="text-slate-700 mb-2" />
+                     <span className="text-xs font-bold text-slate-700 text-center">{doc.name}</span>
+                     <button 
+                        onClick={() => onUpdateDocuments(trip.documents.filter((d: any) => d.id !== doc.id))} 
+                        className="absolute top-2 right-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                     >
+                         <X size={14} />
+                     </button>
+                 </div>
+             ))}
         </div>
     );
 };
 
 const LinkScrapbook = ({ trip, onUpdateScraps }: any) => {
-    const [isAddingScrap, setIsAddingScrap] = useState(false);
-    const [newScrap, setNewScrap] = useState<Partial<Scrap>>({ platform: 'BLOG' });
+    const [isAdding, setIsAdding] = useState(false);
+    const [newScrap, setNewScrap] = useState({ title: '', url: '' });
 
-    const handleAddScrap = () => {
-        if (!newScrap.url || !newScrap.title) return;
-        const scrap: Scrap = {
-            id: crypto.randomUUID(),
-            title: newScrap.title,
-            url: newScrap.url.startsWith('http') ? newScrap.url : `https://${newScrap.url}`,
-            platform: newScrap.platform || 'OTHER',
-            note: newScrap.note || ''
-        };
-        onUpdateScraps([scrap, ...(trip.scraps || [])]);
-        setNewScrap({ platform: 'BLOG', title: '', url: '', note: '' });
-        setIsAddingScrap(false);
-    };
-
-    const getPlatformIcon = (platform: ScrapPlatform) => {
-        switch(platform) {
-            case 'BLOG': return <BookOpen size={16} className="text-[#94a3b8]" />;
-            case 'INSTAGRAM': return <Instagram size={16} className="text-pink-600" />;
-            case 'YOUTUBE': return <Youtube size={16} className="text-red-600" />;
-            default: return <LinkIcon size={16} className="text-[#3b82f6]" />;
-        }
+    const handleAdd = () => {
+        if(!newScrap.title) return;
+        onUpdateScraps([{ id: crypto.randomUUID(), title: newScrap.title, url: newScrap.url, platform: 'OTHER', note: '' }, ...trip.scraps]);
+        setNewScrap({ title: '', url: '' });
+        setIsAdding(false);
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-sm border overflow-hidden" style={{ borderColor: COLOR_BORDER }}>
-        <div className="p-4 border-b flex justify-between items-center" style={{ backgroundColor: COLOR_LIGHT_YELLOW, borderColor: '#FDE68A' }}>
-             <div className="font-bold text-[#1e293b] flex items-center gap-2">
-                <LinkIcon size={18} className="text-[#94a3b8]" />
-                Link Scrapbook
-             </div>
-             <button 
-                onClick={() => setIsAddingScrap(!isAddingScrap)}
-                className="text-[#334155] hover:bg-[#FFFDF5] p-1.5 rounded-full"
-             >
-                 {isAddingScrap ? <X size={20} /> : <Plus size={20} />}
-             </button>
-        </div>
-
-        {isAddingScrap && (
-            <div className="p-4 space-y-3 border-b border-[#C0DDDA]/50" style={{ backgroundColor: '#FFFDF5' }}>
-                <select 
-                    className="w-full p-2 rounded-lg border border-[#FDE68A] text-sm bg-white"
-                    value={newScrap.platform}
-                    onChange={(e) => setNewScrap({...newScrap, platform: e.target.value as ScrapPlatform})}
-                >
-                    <option value="BLOG">Blog Post</option>
-                    <option value="INSTAGRAM">Instagram</option>
-                    <option value="YOUTUBE">YouTube</option>
-                    <option value="OTHER">Other Website</option>
-                </select>
-                <input 
-                    className="w-full p-2 rounded-lg border border-[#FDE68A] text-sm"
-                    placeholder="Title"
-                    value={newScrap.title || ''}
-                    onChange={(e) => setNewScrap({...newScrap, title: e.target.value})}
-                />
-                <input 
-                    className="w-full p-2 rounded-lg border border-[#FDE68A] text-sm"
-                    placeholder="URL"
-                    value={newScrap.url || ''}
-                    onChange={(e) => setNewScrap({...newScrap, url: e.target.value})}
-                />
-                <button onClick={handleAddScrap} className="w-full text-white py-2 rounded-lg text-sm font-bold shadow-md" style={{ backgroundColor: COLOR_COPPER }}>Add Link</button>
+        <div className="bg-white/80 backdrop-blur rounded-2xl border border-white shadow-sm overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2"><LinkIcon size={14}/> Links</h3>
+                <button onClick={() => setIsAdding(!isAdding)} className="bg-white p-1 rounded shadow-sm hover:bg-blue-50"><Plus size={16} /></button>
             </div>
-        )}
-
-        <div className="divide-y divide-[#f1f5f9]">
-            {(trip.scraps || []).map((scrap: Scrap) => (
-                <div key={scrap.id} className="p-4 flex items-center gap-3 hover:bg-[#FFFDF5] group transition-colors">
-                    <div className="mt-0.5">{getPlatformIcon(scrap.platform)}</div>
-                    <div className="flex-1 min-w-0">
-                        <div className="font-bold text-[#1e293b] truncate text-sm">{scrap.title}</div>
-                        <a href={scrap.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#94a3b8] hover:text-[#3b82f6] truncate block">
-                            {scrap.url}
-                        </a>
-                    </div>
-                    <button 
-                        onClick={() => onUpdateScraps(trip.scraps.filter((s: any) => s.id !== scrap.id))}
-                        className="text-[#cbd5e1] hover:text-red-500 opacity-0 group-hover:opacity-100"
-                    >
-                        <X size={16} />
-                    </button>
+            {isAdding && (
+                <div className="p-3 bg-blue-50 space-y-2">
+                    <input className="w-full text-xs p-2 rounded border border-blue-100" placeholder="Title" value={newScrap.title} onChange={e => setNewScrap({...newScrap, title: e.target.value})} />
+                    <input className="w-full text-xs p-2 rounded border border-blue-100" placeholder="URL" value={newScrap.url} onChange={e => setNewScrap({...newScrap, url: e.target.value})} />
+                    <button onClick={handleAdd} className="w-full bg-slate-800 text-white text-xs font-bold py-2 rounded">Add</button>
                 </div>
-            ))}
+            )}
+            <div className="divide-y divide-slate-50">
+                {trip.scraps.map((s: any) => (
+                    <div key={s.id} className="p-3 flex items-center justify-between hover:bg-slate-50 group">
+                        <div className="min-w-0">
+                            <div className="font-bold text-xs text-slate-700 truncate">{s.title}</div>
+                            <div className="text-[10px] text-slate-400 truncate">{s.url}</div>
+                        </div>
+                        <button onClick={() => onUpdateScraps(trip.scraps.filter((i: any) => i.id !== s.id))} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500"><X size={14}/></button>
+                    </div>
+                ))}
+            </div>
         </div>
-      </div>
     );
-}
+};
 
 const CurrencyConverter = () => {
-    const [euro, setEuro] = useState('1');
-    const RATE = 1450;
-    
+    const [val, setVal] = useState('1');
     return (
-        <div className="bg-white p-4 rounded-lg shadow-sm border" style={{ borderColor: COLOR_BORDER }}>
-            <div className="flex justify-between items-center mb-3">
-                <h3 className="font-bold text-[#1e293b] flex items-center gap-2 text-sm">
-                    <Calculator size={16} className="text-[#94a3b8]"/> Currency
-                </h3>
-                <span className="text-[10px] text-[#1e40af] font-medium bg-[#FFFDF5] px-2 py-0.5 rounded-full border border-[#C0DDDA]">1 EUR = {RATE} KRW</span>
-            </div>
-            <div className="flex items-center gap-3">
-                <input 
-                    type="number" 
-                    value={euro}
-                    onChange={(e) => setEuro(e.target.value)}
-                    className="w-full bg-[#f8fafc] rounded-lg p-2 font-bold text-center outline-none border border-transparent focus:border-[#C0DDDA]"
-                />
-                <span className="text-[#94a3b8]">=</span>
-                <div className="w-full bg-[#f8fafc] rounded-lg p-2 font-bold text-center text-[#334155]">
-                    {(parseFloat(euro || '0') * RATE).toLocaleString()}
-                </div>
-            </div>
+        <div className="bg-white/80 backdrop-blur p-4 rounded-2xl border border-white shadow-sm flex items-center gap-3">
+             <div className="bg-blue-50 p-2 rounded-lg text-blue-600"><Calculator size={20} /></div>
+             <div className="flex-1 flex items-center gap-2">
+                 <input className="w-16 bg-transparent font-bold text-right outline-none" value={val} onChange={e => setVal(e.target.value)} type="number" />
+                 <span className="text-xs font-bold text-slate-400">EUR</span>
+                 <span className="text-slate-300">=</span>
+                 <span className="font-bold text-slate-700">{(parseFloat(val || '0') * 1450).toLocaleString()}</span>
+                 <span className="text-xs font-bold text-slate-400">KRW</span>
+             </div>
         </div>
     );
-}
+};
