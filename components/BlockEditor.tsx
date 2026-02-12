@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { ContentBlock, BlockType, Currency, TransportMode, BookingStatus, ExpenseCategory } from '../types';
 import { 
   Type, CheckSquare, MapPin, Link as LinkIcon, DollarSign, X, GripVertical, 
-  Bus, Train, Footprints, Car, Plane, ArrowDown, ArrowLeft, Image as ImageIcon, Clock
+  Bus, Train, Footprints, Car, Plane, ArrowDown, ArrowLeft, Image as ImageIcon, Clock,
+  Search, Map, Globe
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -32,15 +33,15 @@ const RAINBOW_PALETTE = [
 ];
 
 const BOOKING_STATUSES: { status: BookingStatus; label: string; color: string }[] = [
-    { status: 'NONE', label: '계획', color: 'bg-slate-100 text-slate-500' },
+    { status: 'PENDING', label: '예약예정', color: 'bg-amber-50 text-amber-600' },
     { status: 'BOOKED', label: '예약됨', color: 'bg-blue-50 text-blue-600' },
-    { status: 'PENDING', label: '필요', color: 'bg-amber-50 text-amber-600' },
-    { status: 'CANCELED', label: '취소', color: 'bg-red-50 text-red-600' },
+    { status: 'NONE', label: '예약필요없음', color: 'bg-slate-100 text-slate-500' },
 ];
 
 export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) => {
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [activeColorPickerId, setActiveColorPickerId] = useState<string | null>(null);
+  const [isSearchingGeo, setIsSearchingGeo] = useState(false);
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -101,6 +102,28 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
       handleUpdateBlock(activeLocationBlock.id, { children: newChildren });
   };
 
+  const handleAutoGeocode = async () => {
+    if (!activeLocationBlock?.content) return;
+    setIsSearchingGeo(true);
+    try {
+        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(activeLocationBlock.content)}&count=1&language=en&format=json`);
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+            const { latitude, longitude } = data.results[0];
+            handleUpdateBlock(activeLocationBlock.id, { 
+                meta: { ...activeLocationBlock.meta, lat: latitude, lng: longitude } 
+            });
+        } else {
+            alert("좌표를 찾을 수 없습니다.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("좌표 검색 중 오류가 발생했습니다.");
+    } finally {
+        setIsSearchingGeo(false);
+    }
+  };
+
   // --- DETAIL VIEW (Soft Pinterest Style) ---
   if (activeLocationId && activeLocationBlock) {
       return (
@@ -124,34 +147,92 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
               <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
                    {/* Meta Controls - Soft Card */}
                    <div className="bg-white p-4 rounded-2xl shadow-soft border border-white/50 flex flex-col gap-4">
-                        <div className="flex items-center gap-3 border-b border-slate-50 pb-3">
-                            <Clock size={18} className="text-slate-400" />
-                            <input 
-                                type="time"
-                                className="font-semibold text-lg text-slate-600 bg-transparent outline-none cursor-pointer"
-                                value={activeLocationBlock.meta?.time || ''}
-                                onChange={(e) => handleUpdateBlock(activeLocationBlock.id, { meta: { ...activeLocationBlock.meta, time: e.target.value } })}
-                            />
+                        {/* Time & Status Row */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-50 pb-4">
+                            <div className="flex items-center gap-3">
+                                <Clock size={18} className="text-slate-400" />
+                                <input 
+                                    type="time"
+                                    className="font-semibold text-lg text-slate-600 bg-transparent outline-none cursor-pointer"
+                                    value={activeLocationBlock.meta?.time || ''}
+                                    onChange={(e) => handleUpdateBlock(activeLocationBlock.id, { meta: { ...activeLocationBlock.meta, time: e.target.value } })}
+                                />
+                            </div>
+                            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                                {BOOKING_STATUSES.map(status => (
+                                    <button
+                                        key={status.status}
+                                        onClick={() => handleUpdateBlock(activeLocationBlock.id, { meta: { ...activeLocationBlock.meta, status: status.status } })}
+                                        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap shadow-sm border border-transparent ${
+                                            activeLocationBlock.meta?.status === status.status 
+                                            ? status.color 
+                                            : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        {status.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-                            {BOOKING_STATUSES.map(status => (
-                                <button
-                                    key={status.status}
-                                    onClick={() => handleUpdateBlock(activeLocationBlock.id, { meta: { ...activeLocationBlock.meta, status: status.status } })}
-                                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap shadow-sm border border-transparent ${
-                                        activeLocationBlock.meta?.status === status.status 
-                                        ? status.color 
-                                        : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300'
-                                    }`}
-                                >
-                                    {status.label}
-                                </button>
-                            ))}
+
+                        {/* Location & Map Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Lat/Lng Search */}
+                            <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <MapPin size={10} /> 지도 좌표
+                                    </span>
+                                    <button 
+                                        onClick={handleAutoGeocode}
+                                        disabled={!activeLocationBlock.content || isSearchingGeo}
+                                        className="text-[9px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded hover:bg-blue-200 transition-colors flex items-center gap-1 disabled:opacity-50"
+                                    >
+                                        {isSearchingGeo ? '검색 중...' : <><Search size={10} /> 자동 찾기</>}
+                                    </button>
+                                </div>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="number"
+                                        className="w-full p-2 bg-white border-none rounded-lg text-xs font-medium text-slate-600 outline-none shadow-sm placeholder-slate-300"
+                                        placeholder="위도"
+                                        value={activeLocationBlock.meta?.lat || ''}
+                                        onChange={(e) => handleUpdateBlock(activeLocationBlock.id, { meta: { ...activeLocationBlock.meta, lat: parseFloat(e.target.value) } })}
+                                    />
+                                    <input 
+                                        type="number"
+                                        className="w-full p-2 bg-white border-none rounded-lg text-xs font-medium text-slate-600 outline-none shadow-sm placeholder-slate-300"
+                                        placeholder="경도"
+                                        value={activeLocationBlock.meta?.lng || ''}
+                                        onChange={(e) => handleUpdateBlock(activeLocationBlock.id, { meta: { ...activeLocationBlock.meta, lng: parseFloat(e.target.value) } })}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Google Map Link */}
+                            <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-100">
+                                <label className="text-[10px] font-bold text-slate-400 mb-2 block uppercase tracking-wider flex items-center gap-1.5">
+                                    <Map size={10} /> 구글 맵
+                                </label>
+                                <div className="flex gap-2 items-center bg-white rounded-lg p-2 shadow-sm focus-within:ring-2 focus-within:ring-slate-100 transition-all">
+                                    <input 
+                                        className="w-full text-xs font-medium text-slate-700 outline-none placeholder-slate-300 bg-transparent"
+                                        placeholder="링크 붙여넣기"
+                                        value={activeLocationBlock.meta?.googleMapLink || ''}
+                                        onChange={(e) => handleUpdateBlock(activeLocationBlock.id, { meta: { ...activeLocationBlock.meta, googleMapLink: e.target.value } })}
+                                    />
+                                    {activeLocationBlock.meta?.googleMapLink && (
+                                        <a href={activeLocationBlock.meta.googleMapLink} target="_blank" rel="noreferrer" className="text-blue-500 hover:text-blue-700">
+                                            <LinkIcon size={12} />
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                    </div>
 
                    {/* Children Items */}
-                   <div className="space-y-3">
+                   <div className="space-y-3 pb-8">
                         {(activeLocationBlock.children || []).map(child => (
                             <div key={child.id} className="group flex items-start gap-3 bg-white p-4 rounded-2xl shadow-sm border border-transparent hover:shadow-md transition-all duration-200">
                                 <div className="flex-1">
@@ -213,8 +294,8 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange }) =>
                    </div>
               </div>
               
-              {/* Detail Toolbar - Floating Pill */}
-              <div className="p-4 bg-white border-t border-slate-50 flex justify-center sticky bottom-0 z-20">
+              {/* Detail Toolbar - Floating Pill with extra bottom padding to avoid nav overlap */}
+              <div className="p-4 pb-24 bg-white border-t border-slate-50 flex justify-center sticky bottom-0 z-20">
                   <div className="flex gap-2 bg-slate-100 p-1.5 rounded-full shadow-inner">
                     <button onClick={() => handleAddChild(BlockType.TEXT)} className="p-3 text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm rounded-full transition-all"><Type size={18} /></button>
                     <button onClick={() => handleAddChild(BlockType.TODO)} className="p-3 text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm rounded-full transition-all"><CheckSquare size={18} /></button>

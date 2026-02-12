@@ -36,9 +36,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const BOOKING_OPTIONS: { value: BookingStatus; label: string; color: string }[] = [
-    { value: 'NONE', label: '예약 없음', color: 'bg-slate-100 text-slate-500' },
-    { value: 'PENDING', label: '예약 필요', color: 'bg-amber-50 text-amber-700' },
-    { value: 'BOOKED', label: '예약 완료', color: 'bg-blue-50 text-blue-700' },
+    { value: 'PENDING', label: '예약예정', color: 'bg-amber-50 text-amber-700' },
+    { value: 'BOOKED', label: '예약됨', color: 'bg-blue-50 text-blue-700' },
+    { value: 'NONE', label: '예약필요없음', color: 'bg-slate-100 text-slate-500' },
 ];
 
 export const SavedPlaces: React.FC<SavedPlacesProps> = ({ places, onToggleSave, onRemovePlace, onAddPlace }) => {
