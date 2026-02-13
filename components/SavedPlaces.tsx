@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { SavedPlace, PlaceCategory, BookingStatus } from '../types';
-import { Heart, MapPin, Star, Plus, X, Map, Trash2, Search, Upload, LayoutGrid, Utensils, Coffee, IceCream, Wine, Landmark, Bed, Bus, Globe } from 'lucide-react';
+import { Heart, MapPin, Star, Plus, X, Map, Trash2, Search, Upload, LayoutGrid, Utensils, Coffee, IceCream, Wine, Landmark, Bed, Bus, Globe, Edit2 } from 'lucide-react';
 
 interface SavedPlacesProps {
   places: SavedPlace[];
   onToggleSave: (id: string) => void;
   onRemovePlace: (id: string) => void;
   onAddPlace: (place: SavedPlace) => void;
+  onUpdatePlace?: (place: SavedPlace) => void; // New prop for updating
 }
 
 const CATEGORIES: (PlaceCategory | 'ALL')[] = [
@@ -41,11 +42,12 @@ const BOOKING_OPTIONS: { value: BookingStatus; label: string; color: string }[] 
     { value: 'NONE', label: '예약필요없음', color: 'bg-slate-100 text-slate-500' },
 ];
 
-export const SavedPlaces: React.FC<SavedPlacesProps> = ({ places, onToggleSave, onRemovePlace, onAddPlace }) => {
+export const SavedPlaces: React.FC<SavedPlacesProps> = ({ places, onToggleSave, onRemovePlace, onAddPlace, onUpdatePlace }) => {
   const [filter, setFilter] = useState<string>('ALL');
   const [selectedRegion, setSelectedRegion] = useState<string>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSearchingGeo, setIsSearchingGeo] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   const [newPlace, setNewPlace] = useState<Partial<SavedPlace>>({ 
       category: 'RESTAURANT', 
@@ -95,9 +97,9 @@ export const SavedPlaces: React.FC<SavedPlacesProps> = ({ places, onToggleSave, 
       return catMatch && regionMatch;
   });
 
-  const handleOpenModal = () => {
-      setNewPlace(prev => ({
-          ...prev,
+  const handleOpenAddModal = () => {
+      setEditingId(null);
+      setNewPlace({
           category: (filter !== 'ALL' ? filter as PlaceCategory : 'RESTAURANT'),
           name: '',
           description: '',
@@ -105,8 +107,17 @@ export const SavedPlaces: React.FC<SavedPlacesProps> = ({ places, onToggleSave, 
           googleMapLink: '',
           lat: 41.9028,
           lng: 12.4964,
-          region: ''
-      }));
+          region: '',
+          rating: 5,
+          reviewCount: 0,
+          bookingStatus: 'NONE'
+      });
+      setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (place: SavedPlace) => {
+      setEditingId(place.id);
+      setNewPlace({ ...place });
       setIsModalOpen(true);
   };
 
@@ -151,12 +162,12 @@ export const SavedPlaces: React.FC<SavedPlacesProps> = ({ places, onToggleSave, 
       if (!newPlace.name) return;
       
       const place: SavedPlace = {
-          id: crypto.randomUUID(),
+          id: editingId || crypto.randomUUID(),
           name: newPlace.name,
           category: newPlace.category as PlaceCategory,
           description: newPlace.description || '',
           rating: newPlace.rating || 5,
-          reviewCount: 0,
+          reviewCount: newPlace.reviewCount || 0,
           imageUrl: newPlace.imageUrl || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=500', 
           isSaved: true,
           bookingStatus: newPlace.bookingStatus || 'NONE',
@@ -166,7 +177,11 @@ export const SavedPlaces: React.FC<SavedPlacesProps> = ({ places, onToggleSave, 
           region: newPlace.region
       };
       
-      onAddPlace(place);
+      if (editingId && onUpdatePlace) {
+          onUpdatePlace(place);
+      } else {
+          onAddPlace(place);
+      }
       setIsModalOpen(false);
   };
 
@@ -297,12 +312,23 @@ export const SavedPlaces: React.FC<SavedPlacesProps> = ({ places, onToggleSave, 
                                      </a>
                                  )}
                              </div>
-                             <button 
-                                onClick={(e) => { e.stopPropagation(); onRemovePlace(place.id); }} 
-                                className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-1 rounded-full transition-colors relative z-20 cursor-pointer"
-                            >
-                                <Trash2 size={12} />
-                            </button>
+                             
+                             <div className="flex items-center gap-1">
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleOpenEditModal(place); }} 
+                                    className="text-slate-300 hover:text-blue-500 hover:bg-blue-50 p-1 rounded-full transition-colors relative z-20 cursor-pointer"
+                                    title="수정"
+                                >
+                                    <Edit2 size={12} />
+                                </button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); onRemovePlace(place.id); }} 
+                                    className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-1 rounded-full transition-colors relative z-20 cursor-pointer"
+                                    title="삭제"
+                                >
+                                    <Trash2 size={12} />
+                                </button>
+                             </div>
                          </div>
 
                          {/* Like Button (Floating Top Right) */}
@@ -334,20 +360,20 @@ export const SavedPlaces: React.FC<SavedPlacesProps> = ({ places, onToggleSave, 
 
       {/* Floating Add Button (Higher position) */}
       <button 
-        onClick={handleOpenModal}
+        onClick={handleOpenAddModal}
         className="absolute bottom-24 right-6 w-14 h-14 bg-slate-800 text-white rounded-full shadow-glow flex items-center justify-center hover:bg-slate-700 hover:scale-105 active:scale-95 transition-all z-20"
       >
           <Plus size={24} />
       </button>
 
-      {/* Add Place Modal */}
+      {/* Add/Edit Place Modal */}
       {isModalOpen && (
           <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
               <div className="bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-10 fade-in duration-300 max-h-[85vh] flex flex-col border border-white/50">
                   
                   {/* Modal Header */}
                   <div className="flex justify-between items-center p-6 border-b border-slate-100 shrink-0">
-                      <h3 className="text-xl font-bold text-slate-800">장소 추가</h3>
+                      <h3 className="text-xl font-bold text-slate-800">{editingId ? '장소 수정' : '장소 추가'}</h3>
                       <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><X size={20}/></button>
                   </div>
                   
@@ -494,7 +520,7 @@ export const SavedPlaces: React.FC<SavedPlacesProps> = ({ places, onToggleSave, 
                           disabled={!newPlace.name}
                           className="w-full py-3.5 bg-slate-800 text-white rounded-xl font-bold text-xs shadow-lg hover:bg-slate-700 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                       >
-                          보관함에 저장
+                          {editingId ? '수정 완료' : '보관함에 저장'}
                       </button>
                   </div>
               </div>

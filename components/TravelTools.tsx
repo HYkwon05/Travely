@@ -431,14 +431,16 @@ const LinkScrapbook = ({ trip, onUpdateScraps }: any) => {
 const CurrencyConverter = () => {
     const [val, setVal] = useState('1');
     return (
-        <div className="bg-white p-5 rounded-3xl border border-white shadow-soft flex items-center gap-4 overflow-hidden">
+        <div className="bg-white p-5 rounded-3xl border border-white shadow-soft flex flex-wrap items-center gap-4 overflow-hidden">
              <div className="bg-emerald-50 p-3 rounded-2xl text-emerald-600 shadow-sm shrink-0"><Calculator size={24} /></div>
-             <div className="flex-1 flex items-center gap-2 overflow-hidden">
-                 <input className="w-16 md:w-20 bg-slate-50 rounded-xl px-2 py-1 font-bold text-right outline-none text-slate-800 shrink-0" value={val} onChange={e => setVal(e.target.value)} type="number" />
-                 <span className="text-xs font-bold text-slate-400 shrink-0">EUR</span>
-                 <span className="text-slate-300 text-lg shrink-0">=</span>
-                 <div className="flex-1 min-w-0 flex items-baseline gap-1">
-                    <span className="font-bold text-slate-700 text-lg truncate">{(parseFloat(val || '0') * 1450).toLocaleString()}</span>
+             <div className="flex-1 flex flex-wrap items-center gap-2">
+                 <div className="flex items-center gap-2">
+                    <input className="w-16 md:w-20 bg-slate-50 rounded-xl px-2 py-1 font-bold text-right outline-none text-slate-800 shrink-0" value={val} onChange={e => setVal(e.target.value)} type="number" />
+                    <span className="text-xs font-bold text-slate-400 shrink-0">EUR</span>
+                    <span className="text-slate-300 text-lg shrink-0">=</span>
+                 </div>
+                 <div className="flex items-baseline gap-1">
+                    <span className="font-bold text-slate-700 text-lg">{(parseFloat(val || '0') * 1450).toLocaleString()}</span>
                     <span className="text-xs font-bold text-slate-400">KRW</span>
                  </div>
              </div>

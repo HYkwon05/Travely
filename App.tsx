@@ -105,6 +105,13 @@ export default function App() {
           savedPlaces: [newPlace, ...prev.savedPlaces]
       }));
   };
+  
+  const handleUpdatePlace = (updatedPlace: SavedPlace) => {
+      setTrip(prev => ({
+          ...prev,
+          savedPlaces: prev.savedPlaces.map(p => p.id === updatedPlace.id ? updatedPlace : p)
+      }));
+  };
 
   const handleUpdateScraps = (newScraps: Scrap[]) => {
       setTrip(prev => ({ ...prev, scraps: newScraps }));
@@ -306,7 +313,7 @@ export default function App() {
                                         {/* Image Background */}
                                         {bgImage && (
                                             <div 
-                                                className="absolute inset-0 bg-cover bg-center opacity-30 group-hover:opacity-40 transition-opacity grayscale-[20%]"
+                                                className="absolute inset-0 bg-cover bg-center opacity-70 group-hover:opacity-80 transition-opacity grayscale-[10%]"
                                                 style={{ backgroundImage: `url(${bgImage})` }}
                                             />
                                         )}
@@ -399,7 +406,15 @@ export default function App() {
         {/* OTHER VIEWS (Full Width Glass Cards) */}
         {view !== 'SCHEDULE' && (
             <div className="w-full h-full overflow-hidden rounded-2xl glass-card relative shadow-soft">
-                {view === 'SAVED' && <SavedPlaces places={trip.savedPlaces} onToggleSave={handleToggleSave} onRemovePlace={handleRemovePlace} onAddPlace={handleAddPlace} />}
+                {view === 'SAVED' && (
+                    <SavedPlaces 
+                        places={trip.savedPlaces} 
+                        onToggleSave={handleToggleSave} 
+                        onRemovePlace={handleRemovePlace} 
+                        onAddPlace={handleAddPlace}
+                        onUpdatePlace={handleUpdatePlace}
+                    />
+                )}
                 {view === 'TOOLS' && (
                     <TravelTools 
                         trip={trip} 

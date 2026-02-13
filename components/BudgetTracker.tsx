@@ -44,6 +44,7 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState(trip.budget ? trip.budget.toString() : '0');
   const [isAddingExpense, setIsAddingExpense] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   // New Expense State
   const [newExp, setNewExp] = useState<Partial<ManualExpense>>({ currency: 'KRW', category: 'OTHER', isPaid: true });
@@ -124,17 +125,31 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
 
   const handleAddExpense = () => {
       if (!newExp.title || !newExp.amount) return;
+      
       const expense: ManualExpense = {
-          id: crypto.randomUUID(),
+          id: editingId || crypto.randomUUID(),
           title: newExp.title,
           amount: typeof newExp.amount === 'string' ? parseFloat(newExp.amount) : newExp.amount,
           currency: newExp.currency as Currency,
           category: newExp.category as ExpenseCategory,
           isPaid: newExp.isPaid || false
       };
-      onUpdateManualExpenses([...(trip.manualExpenses || []), expense]);
+
+      if (editingId) {
+          onUpdateManualExpenses(trip.manualExpenses.map(e => e.id === editingId ? expense : e));
+      } else {
+          onUpdateManualExpenses([...(trip.manualExpenses || []), expense]);
+      }
+      
       setIsAddingExpense(false);
+      setEditingId(null);
       setNewExp({ currency: 'KRW', category: 'OTHER', isPaid: true, title: '', amount: 0 });
+  };
+
+  const handleEdit = (exp: ManualExpense) => {
+      setNewExp({ ...exp });
+      setEditingId(exp.id);
+      setIsAddingExpense(true);
   };
 
   const handleDelete = (id: string, source: string, e: React.MouseEvent) => {
@@ -147,6 +162,11 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
           const currentExpenses = trip.manualExpenses || [];
           if(window.confirm("이 지출 내역을 삭제하시겠습니까?")) {
             onUpdateManualExpenses(currentExpenses.filter(e => e.id !== id));
+            if (editingId === id) {
+                setIsAddingExpense(false);
+                setEditingId(null);
+                setNewExp({ currency: 'KRW', category: 'OTHER', isPaid: true, title: '', amount: 0 });
+            }
           }
       } else if (source === 'BLOCK' && onRemoveBlockExpense) {
           // Block expenses have their own confirm in the handler
@@ -258,9 +278,17 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
       {/* 3. Expense List */}
       <div className="bg-white rounded-3xl shadow-soft border border-white overflow-hidden min-h-[300px] flex flex-col">
           <div className="p-6 border-b border-slate-50 flex justify-between items-center">
-              <h3 className="font-bold text-lg text-slate-800">최근 지출 내역</h3>
+              <h3 className="font-bold text-lg text-slate-800">{editingId ? '지출 수정' : '최근 지출 내역'}</h3>
               <button 
-                  onClick={() => setIsAddingExpense(!isAddingExpense)}
+                  onClick={() => {
+                      if (isAddingExpense) {
+                          setIsAddingExpense(false);
+                          setEditingId(null);
+                          setNewExp({ currency: 'KRW', category: 'OTHER', isPaid: true, title: '', amount: 0 });
+                      } else {
+                          setIsAddingExpense(true);
+                      }
+                  }}
                   className={`p-2 rounded-full shadow-lg transition-all duration-300 ${isAddingExpense ? 'bg-slate-100 text-slate-500 rotate-45' : 'bg-slate-800 text-white hover:scale-110'}`}
               >
                   <Plus size={20} />
@@ -309,7 +337,9 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
                       상태: {newExp.isPaid ? '결제완료' : '지출예정'}
                   </button>
                   
-                  <button onClick={handleAddExpense} className="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg hover:bg-slate-700 hover:scale-[1.01] transition-all">지출 추가</button>
+                  <button onClick={handleAddExpense} className="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg hover:bg-slate-700 hover:scale-[1.01] transition-all">
+                      {editingId ? '지출 수정' : '지출 추가'}
+                  </button>
               </div>
           )}
 
@@ -338,15 +368,27 @@ export const BudgetTracker: React.FC<BudgetTrackerProps> = ({ trip, onUpdateManu
                           )}
                       </div>
                       
-                      {/* Delete Button - Fixed: Z-Index 50 to stay above everything */}
-                      <button 
-                          type="button"
-                          onClick={(e) => handleDelete(exp.id, exp.source, e)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full text-slate-300 hover:text-rose-600 bg-white hover:bg-rose-50 shadow-sm border border-slate-100 opacity-0 group-hover:opacity-100 transition-all duration-200 z-50 cursor-pointer"
-                          title="삭제"
-                      >
-                          <Trash2 size={16} />
-                      </button>
+                      {/* Edit/Delete Buttons */}
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 z-50">
+                        {exp.source === 'MANUAL' && (
+                            <button 
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleEdit(exp); }}
+                                className="p-2 rounded-full text-slate-300 hover:text-blue-600 bg-white hover:bg-blue-50 shadow-sm border border-slate-100 cursor-pointer"
+                                title="수정"
+                            >
+                                <Edit2 size={16} />
+                            </button>
+                        )}
+                        <button 
+                            type="button"
+                            onClick={(e) => handleDelete(exp.id, exp.source, e)}
+                            className="p-2 rounded-full text-slate-300 hover:text-rose-600 bg-white hover:bg-rose-50 shadow-sm border border-slate-100 cursor-pointer"
+                            title="삭제"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                      </div>
                   </div>
               ))}
           </div>
