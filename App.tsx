@@ -310,15 +310,20 @@ export default function App() {
                                         role="button"
                                         tabIndex={0}
                                     >
-                                        {/* Image Background */}
+                                        {/* Image Background with Masking */}
                                         {bgImage && (
                                             <div 
-                                                className="absolute inset-0 bg-cover bg-center opacity-70 group-hover:opacity-80 transition-opacity grayscale-[10%]"
-                                                style={{ backgroundImage: `url(${bgImage})` }}
+                                                className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-all duration-700 grayscale-[10%] group-hover:grayscale-0"
+                                                style={{ 
+                                                    backgroundImage: `url(${bgImage})`,
+                                                    // CSS Masking: Transparent on left (0.15), Solid on right (1)
+                                                    maskImage: 'linear-gradient(to right, rgba(0,0,0,0.15) 0%, rgba(0,0,0,1) 70%)',
+                                                    WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,0.15) 0%, rgba(0,0,0,1) 70%)'
+                                                }}
                                             />
                                         )}
-                                        {/* Gradient Overlay */}
-                                        <div className={`absolute inset-0 bg-gradient-to-r ${selectedDayId === day.id ? 'from-white/95 to-white/40' : 'from-white/90 to-white/60'}`} />
+                                        {/* Gradient Overlay - Text Readability Layer */}
+                                        <div className={`absolute inset-0 bg-gradient-to-r ${selectedDayId === day.id ? 'from-white/90 via-white/50 to-transparent' : 'from-white/95 via-white/70 to-white/20'}`} />
 
                                         <div className="relative z-10 p-3.5 w-full flex justify-between items-start">
                                             <div className="min-w-0 flex-1">
